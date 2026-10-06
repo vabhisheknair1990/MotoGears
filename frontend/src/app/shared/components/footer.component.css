@@ -1,0 +1,25 @@
+:host { display: block; margin-top: 48px; }
+.trust { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.trust-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding-top: 22px; padding-bottom: 22px; }
+@media (min-width: 900px) { .trust-grid { grid-template-columns: repeat(4, 1fr); } }
+.trust-grid > div { display: flex; gap: 12px; align-items: center; color: var(--brand); }
+.trust-grid span { display: flex; flex-direction: column; color: var(--muted); font-size: 13px; }
+.trust-grid strong { color: var(--ink); font-size: 14.5px; }
+.foot { background: var(--dark); color: #aab2bf; font-size: 14px; }
+.cols { display: grid; gap: 28px; padding-top: 44px; padding-bottom: 32px; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 900px) { .cols { grid-template-columns: 1.6fr 1fr 1fr 1fr 1.8fr; } }
+.about, .news { grid-column: span 2; }
+@media (min-width: 900px) { .about, .news { grid-column: auto; } }
+h4 { color: #fff; font-size: 14px; margin-bottom: 12px; font-family: var(--font); }
+.cols a { display: block; padding: 4px 0; }
+.cols a:hover { color: #fff; }
+.logo { display: inline-flex !important; align-items: center; gap: 8px; color: #fff; margin-bottom: 10px; }
+.mark { width: 32px; height: 32px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: #fff; }
+.word { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: #fff; }
+.word b { color: var(--brand); }
+.contact { line-height: 2; }
+.contact app-icon { vertical-align: -2px; margin-right: 6px; }
+.news .input { background: var(--dark-2); border-color: var(--dark-line); color: #fff; }
+.pay { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.pay span { font-size: 11px; font-weight: 700; padding: 4px 8px; border: 1px solid var(--dark-line); border-radius: 4px; color: #d0d5dd; }
+.legal { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-top: 1px solid var(--dark-line); padding-top: 16px; padding-bottom: 20px; font-size: 12.5px; }

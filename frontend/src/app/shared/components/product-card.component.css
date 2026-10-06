@@ -1,0 +1,36 @@
+:host { display: block; min-width: 0; }
+.card-p {
+  position: relative; height: 100%; display: flex; flex-direction: column; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; transition: box-shadow .2s, transform .2s, border-color .2s;
+}
+.card-p:hover { box-shadow: var(--shadow); border-color: #d0d5dd; transform: translateY(-2px); }
+.media { position: relative; display: block; aspect-ratio: 1; background: #eef0f3; overflow: hidden; }
+.media img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
+.card-p:hover .media img { transform: scale(1.04); }
+.noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--subtle); }
+.flags { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.wl { position: absolute; right: 10px; top: 10px; }
+.body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.brand { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.name { font-size: 14.5px; font-weight: 600; line-height: 1.35; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; font-family: var(--font); }
+.fit { font-size: 12px; font-weight: 600; }
+.fit span { display: inline-flex; align-items: center; gap: 4px; }
+.fit-yes { color: var(--success); }
+.fit-no { color: var(--warning); }
+.fit-uni { color: var(--muted); }
+.stock { font-size: 12px; font-weight: 600; }
+.stock.in_stock { color: var(--success); }
+.stock.low_stock { color: var(--warning); }
+.stock.out_of_stock { color: var(--danger); }
+.stock.backorder { color: var(--info); }
+.actions { margin-top: auto; padding-top: 6px; }
+/* list layout */
+.card-p.list { flex-direction: row; }
+.card-p.list .media { width: 180px; flex: none; aspect-ratio: auto; min-height: 180px; }
+.card-p.list .name { -webkit-line-clamp: 3; line-clamp: 3; min-height: 0; font-size: 16px; }
+.card-p.list .actions { max-width: 220px; }
+@media (max-width: 640px) {
+  .body { padding: 10px; }
+  .name { font-size: 13.5px; }
+  .card-p.list .media { width: 120px; min-height: 120px; }
+}

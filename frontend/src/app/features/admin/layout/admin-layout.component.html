@@ -1,0 +1,76 @@
+<a class="skip-link" href="#admin-main">Skip to content</a>
+<div class="shell" [class.open]="sidebarOpen()">
+  <aside class="side" aria-label="Admin navigation">
+    <a routerLink="/admin" class="brand">
+      <span class="logo" aria-hidden="true"><app-icon name="gauge" [size]="18" /></span>
+      <span><strong>MotoGears</strong><small>Admin</small></span>
+    </a>
+    <nav>
+      @for (s of nav(); track s.title) {
+        @if (s.title) { <div class="sec">{{ s.title }}</div> }
+        @for (i of s.items; track i.link) {
+          <a [routerLink]="i.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: !!i.exact }" class="item">
+            <app-icon [name]="i.icon" [size]="18" />
+            <span class="grow">{{ i.label }}</span>
+            @if (i.badge && badges()[i.badge]) { <span class="count" [attr.aria-label]="badges()[i.badge] + ' pending'">{{ badges()[i.badge] }}</span> }
+          </a>
+        }
+      }
+    </nav>
+    <a routerLink="/" class="store-link" target="_blank" rel="noopener"><app-icon name="external" [size]="16" /> View storefront</a>
+  </aside>
+  <div class="scrim" (click)="sidebarOpen.set(false)" aria-hidden="true"></div>
+
+  <div class="main">
+    <header class="top">
+      <button type="button" class="icon-btn menu-btn" (click)="sidebarOpen.set(!sidebarOpen())" aria-label="Toggle navigation" [attr.aria-expanded]="sidebarOpen()"><app-icon name="menu" [size]="20" /></button>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a routerLink="/admin">Admin</a>
+        @for (c of crumbs(); track c.link; let last = $last) {
+          <app-icon name="chevron-right" [size]="14" />
+          @if (last) { <span aria-current="page">{{ c.label }}</span> } @else { <a [routerLink]="c.link">{{ c.label }}</a> }
+        }
+      </nav>
+
+      <div class="pop-wrap">
+        <button type="button" class="icon-btn" (click)="toggleMenu('notifications')" aria-label="Notifications" [attr.aria-expanded]="menu() === 'notifications'">
+          <app-icon name="bell" [size]="20" />
+          @if (unread()) { <span class="dot-count">{{ unread() > 9 ? '9+' : unread() }}</span> }
+        </button>
+        @if (menu() === 'notifications') {
+          <div class="pop notif" role="dialog" aria-label="Notifications">
+            <div class="pop-head"><strong>Notifications</strong>@if (unread()) { <button type="button" class="link text-sm" (click)="markAllRead()">Mark all read</button> }</div>
+            <ul>
+              @for (n of notifications(); track n.id) {
+                <li [class.unread]="!n.read_at"><button type="button" (click)="open(n)">
+                  <span class="n-title">{{ n.title }}</span><span class="n-msg">{{ n.message }}</span><span class="n-time">{{ n.created_at | timeAgo }}</span>
+                </button></li>
+              } @empty {
+                <li class="none">You're all caught up.</li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+
+      <div class="pop-wrap">
+        <button type="button" class="user-btn" (click)="toggleMenu('user')" [attr.aria-expanded]="menu() === 'user'" aria-label="Account menu">
+          <span class="avatar">{{ initials() }}</span>
+          <span class="who hide-mobile"><strong>{{ auth.user()?.name }}</strong><small>{{ auth.user()?.roles?.[0]?.label }}</small></span>
+          <app-icon name="chevron-down" [size]="16" />
+        </button>
+        @if (menu() === 'user') {
+          <div class="pop user" role="menu">
+            <div class="pop-head col"><strong>{{ auth.user()?.name }}</strong><span class="text-xs text-muted">{{ auth.user()?.email }}</span></div>
+            <a routerLink="/" target="_blank" rel="noopener" role="menuitem"><app-icon name="store" [size]="16" /> Open storefront</a>
+            <button type="button" role="menuitem" (click)="logout()"><app-icon name="logout" [size]="16" /> Sign out</button>
+          </div>
+        }
+      </div>
+    </header>
+    @if (menu()) { <div class="click-away" (click)="menu.set(null)" aria-hidden="true"></div> }
+    <main id="admin-main" class="content" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>

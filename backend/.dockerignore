@@ -1,0 +1,14 @@
+vendor
+node_modules
+.env
+storage/logs/*
+storage/app/public/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+database/database.sqlite
+public/storage
+composer.local.json
+composer.local.lock
+.git
+.phpunit.result.cache

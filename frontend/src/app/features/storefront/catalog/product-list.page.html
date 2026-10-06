@@ -1,0 +1,112 @@
+<div class="container">
+  <div class="page-title">
+    <app-breadcrumb [items]="crumbs()" />
+  </div>
+
+  @if (mode() === 'category' && category(); as c) {
+    <header class="list-head">
+      <div class="grow">
+        <h1>{{ c.name }}</h1>
+        @if (c.description) { <p class="text-muted">{{ c.description }}</p> }
+        @if (c.children?.length) {
+          <div class="subcats">
+            @for (s of c.children; track s.id) { <a class="chip" [routerLink]="['/category', s.slug]">{{ s.name }} <span class="text-subtle">{{ s.products_count }}</span></a> }
+          </div>
+        }
+      </div>
+      @if (c.image) { <img class="head-img hide-mobile" [src]="c.image" [alt]="c.name" /> }
+    </header>
+  } @else if (mode() === 'brand' && brand(); as b) {
+    <header class="list-head">
+      @if (b.logo) { <img class="brand-logo" [src]="b.logo" [alt]="b.name" /> }
+      <div class="grow">
+        <h1>{{ b.name }}</h1>
+        <p class="text-muted mb-0">{{ b.description }}</p>
+        @if (b.country) { <span class="text-sm text-subtle">Origin: {{ b.country }}</span> }
+      </div>
+    </header>
+  } @else {
+    <header class="list-head"><h1>{{ title() }}</h1></header>
+  }
+
+  @if (vehicle.selected()) {
+    <div class="vbar" [class.off]="!filteringByVehicle()">
+      <app-icon [name]="vehicle.selected()?.vehicleType === 'motorcycle' ? 'bike' : 'car'" [size]="20" />
+      <span class="grow">
+        @if (filteringByVehicle()) { Showing parts that fit your <strong>{{ vehicle.fullLabel() }}</strong> }
+        @else { Showing all parts. Your vehicle: <strong>{{ vehicle.fullLabel() }}</strong> }
+      </span>
+      <button type="button" class="btn btn-sm" (click)="toggleVehicleFilter()">{{ filteringByVehicle() ? 'Show all parts' : 'Only parts that fit' }}</button>
+      <button type="button" class="btn btn-sm btn-ghost hide-mobile" (click)="ui.vehicleModalOpen.set(true)">Change</button>
+    </div>
+  } @else {
+    <div class="vbar off">
+      <app-icon name="car" [size]="20" />
+      <span class="grow">Select your vehicle to see only parts that fit.</span>
+      <button type="button" class="btn btn-sm btn-primary" (click)="ui.vehicleModalOpen.set(true)">Select vehicle</button>
+    </div>
+  }
+
+  <div class="layout">
+    <aside class="side hide-mobile" aria-label="Filters">
+      <h2 class="side-title">Filters</h2>
+      <app-filter-panel [facets]="facets()" [active]="active()" [hideCategory]="mode() === 'category'" [hideBrand]="mode() === 'brand'"
+                        (changed)="applyFilters($event)" (clearAll)="clearFilters()" />
+    </aside>
+
+    <section class="results" aria-live="polite">
+      <div class="toolbar">
+        <button type="button" class="btn btn-sm hide-desktop" (click)="filtersOpen.set(true)"><app-icon name="sliders" [size]="16" /> Filters @if (chips().length) { ({{ chips().length }}) }</button>
+        <span class="count text-muted text-sm">
+          @if (!loading() && meta(); as m) { {{ m.total }} {{ m.total === 1 ? 'product' : 'products' }} }
+        </span>
+        <label class="sort">
+          <span class="text-sm text-muted hide-mobile">Sort by</span>
+          <select class="select input-sm" (change)="setSort($any($event.target).value)" aria-label="Sort products">
+            @for (s of facets()?.sorts ?? []; track s.value) { <option [value]="s.value" [selected]="s.value === sort()">{{ s.label }}</option> }
+          </select>
+        </label>
+        <div class="views hide-mobile" role="group" aria-label="Layout">
+          <button type="button" class="icon-btn sm" [class.on]="view() === 'grid'" (click)="setView('grid')" aria-label="Grid view"><app-icon name="grid" [size]="18" /></button>
+          <button type="button" class="icon-btn sm" [class.on]="view() === 'list'" (click)="setView('list')" aria-label="List view"><app-icon name="list" [size]="18" /></button>
+        </div>
+      </div>
+
+      @if (chips().length) {
+        <div class="chips">
+          @for (c of chips(); track c.label) {
+            <span class="chip">{{ c.label }}<button type="button" (click)="applyFilters(c.patch)" [attr.aria-label]="'Remove filter ' + c.label"><app-icon name="x" [size]="14" /></button></span>
+          }
+          <button type="button" class="link text-sm clear-all" (click)="clearFilters()">Clear all</button>
+        </div>
+      }
+
+      @if (error()) {
+        <div class="alert alert-danger"><app-icon name="alert" /> Products could not be loaded. Please try again.</div>
+      } @else if (!loading() && !items().length) {
+        <app-empty-state icon="search" title="No products found." [message]="filteringByVehicle() ? 'Nothing here fits your selected vehicle with these filters. Try showing all parts or clearing filters.' : 'Try removing some filters or searching for something else.'">
+          <div class="row center wrap">
+            @if (chips().length) { <button class="btn" (click)="clearFilters()">Clear filters</button> }
+            @if (filteringByVehicle()) { <button class="btn btn-primary" (click)="toggleVehicleFilter()">Show all parts</button> }
+            @if (!chips().length && !filteringByVehicle()) { <a class="btn btn-primary" routerLink="/shop">Browse all products</a> }
+          </div>
+        </app-empty-state>
+      } @else {
+        <app-product-grid [products]="items()" [loading]="loading()" [layout]="view()" [fitsSelected]="filteringByVehicle()" [skeletons]="12" />
+        <app-pagination [meta]="meta()" (pageChange)="setPage($event)" />
+      }
+    </section>
+  </div>
+</div>
+
+@if (filtersOpen()) {
+  <div class="backdrop" (click)="filtersOpen.set(false)"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-label="Filters" (keydown.escape)="filtersOpen.set(false)">
+    <header class="row between"><h2>Filters</h2><button class="icon-btn" (click)="filtersOpen.set(false)" aria-label="Close filters"><app-icon name="x" /></button></header>
+    <div class="drawer-body">
+      <app-filter-panel [facets]="facets()" [active]="active()" [hideCategory]="mode() === 'category'" [hideBrand]="mode() === 'brand'"
+                        (changed)="applyFilters($event)" (clearAll)="clearFilters()" />
+    </div>
+    <footer><button class="btn btn-primary btn-block" (click)="filtersOpen.set(false)">Show {{ meta()?.total ?? 0 }} products</button></footer>
+  </aside>
+}

@@ -1,0 +1,11 @@
+.auth { min-height: calc(100vh - 360px); display: grid; place-items: center; padding: 40px 16px; }
+.box { width: 100%; max-width: 440px; }
+.box.wide { max-width: 520px; }
+.box h1 { font-size: 30px; margin-bottom: 4px; }
+.box .sub { color: var(--muted); margin-bottom: 20px; }
+.box form { display: flex; flex-direction: column; gap: 16px; }
+.pw { position: relative; }
+.pw button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.alt { text-align: center; font-size: 14px; color: var(--muted); margin-top: 16px; }
+.demo { margin-top: 18px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px dashed var(--line); font-size: 13px; }
+.demo button { border: 0; background: none; color: var(--brand); font-weight: 600; padding: 0; }

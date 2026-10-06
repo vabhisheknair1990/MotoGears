@@ -1,0 +1,107 @@
+@if (loading()) {
+  <div class="skeleton" style="height: 420px"></div>
+} @else if (!order()) {
+  <div class="card"><app-empty-state icon="package" title="Order not found" message="This order doesn't exist or belongs to another account."><a class="btn btn-primary" routerLink="/account/orders">Back to my orders</a></app-empty-state></div>
+} @else {
+  @let o = order()!;
+  <a routerLink="/account/orders" class="text-sm text-muted back"><app-icon name="arrow-left" [size]="14" /> All orders</a>
+  <div class="head">
+    <div>
+      <h1>Order <span class="mono">{{ o.order_number }}</span></h1>
+      <p class="text-muted mb-0">Placed {{ o.placed_at | appDate: true }} · {{ o.total_quantity }} items</p>
+    </div>
+    <app-status-badge [status]="o.status" [label]="o.status_label" />
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-sm" [routerLink]="['/invoice', o.id]"><app-icon name="file" [size]="15" /> View / print invoice</a>
+    <button class="btn btn-sm" (click)="download()" [disabled]="downloading()"><app-icon name="download" [size]="15" /> Download invoice</button>
+    @if (o.can_pay) { <a class="btn btn-sm btn-primary" [routerLink]="['/order-success', o.order_number]"><app-icon name="card" [size]="15" /> Complete payment</a> }
+    @if (o.can_cancel) { <button class="btn btn-sm btn-danger" (click)="cancelOpen.set(true)"><app-icon name="x" [size]="15" /> Cancel order</button> }
+  </div>
+
+  <div class="od-grid">
+    <div class="stack gap-16">
+      <section class="card card-body">
+        <h3>Tracking</h3>
+        @if (o.tracking_number) {
+          <p class="track-no"><app-icon name="truck" [size]="16" /> {{ o.carrier }} · <span class="mono">{{ o.tracking_number }}</span></p>
+        }
+        <app-order-timeline [status]="o.status" [entries]="o.timeline ?? []" />
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h3>Items</h3></div>
+        @for (i of o.items ?? []; track i.id) {
+          <div class="item">
+            <img [src]="i.image" [alt]="i.product_name" class="img" />
+            <div class="grow">
+              @if (i.product_slug) { <a [routerLink]="['/products', i.product_slug]" class="fw-600">{{ i.product_name }}</a> } @else { <span class="fw-600">{{ i.product_name }}</span> }
+              <span class="text-xs text-muted">{{ i.brand_name }} · SKU {{ i.sku }}@if (i.part_number) { · Part {{ i.part_number }} }</span>
+              <span class="text-sm">{{ i.unit_price | inr }} × {{ i.quantity }}@if (i.discount > 0) { <span class="text-success"> (−{{ i.discount | inr }})</span> }</span>
+              @if (o.can_review && i.product_id) {
+                @if (i.reviewed) { <span class="text-xs text-success fw-600"><app-icon name="check" [size]="12" /> Reviewed</span> }
+                @else { <button class="btn btn-sm btn-ghost rv" (click)="openReview(i)"><app-icon name="star" [size]="14" /> Write a review</button> }
+              }
+            </div>
+            <strong>{{ i.line_total | inr }}</strong>
+          </div>
+        }
+      </section>
+    </div>
+
+    <div class="stack gap-16">
+      <section class="card card-body totals">
+        <h3>Payment summary</h3>
+        <div class="row between"><span>Subtotal</span><span>{{ o.subtotal | inr }}</span></div>
+        @if (o.discount > 0) { <div class="row between text-success"><span>Discount @if (o.coupon_code) { ({{ o.coupon_code }}) }</span><span>−{{ o.discount | inr }}</span></div> }
+        <div class="row between"><span>Shipping ({{ o.shipping_method }})</span><span>{{ o.shipping > 0 ? (o.shipping | inr) : 'FREE' }}</span></div>
+        <div class="row between"><span>GST</span><span>{{ o.tax | inr }}</span></div>
+        <hr />
+        <div class="row between grand"><span>Total</span><span>{{ o.grand_total | inr }}</span></div>
+        <div class="pay">
+          <div class="row between"><span>{{ o.payment_method_label }}</span><app-status-badge [status]="o.payment_status" /></div>
+          @if (o.payment; as p) {
+            @if (p.details.last4) { <span class="text-xs text-muted">{{ p.details.brand }} •••• {{ p.details.last4 }}</span> }
+            @if (p.details.vpa) { <span class="text-xs text-muted">{{ p.details.vpa }}</span> }
+            @if (p.transaction_id) { <span class="text-xs text-muted mono">Txn {{ p.transaction_id }}</span> }
+            @if (p.failure_reason && o.payment_status === 'failed') { <span class="text-xs text-danger">{{ p.failure_reason }}</span> }
+          }
+        </div>
+      </section>
+      <section class="card card-body">
+        <h3>Shipping address</h3>
+        <p class="addr">{{ o.shipping_address.name }}<br />{{ o.shipping_address.line1 }}@if (o.shipping_address.line2) {, {{ o.shipping_address.line2 }}}<br />{{ o.shipping_address.city }}, {{ o.shipping_address.state }} – {{ o.shipping_address.postal_code }}<br />Phone: {{ o.shipping_address.phone }}</p>
+        <h3 class="mt-16">Billing address</h3>
+        <p class="addr">{{ o.billing_address.name }}<br />{{ o.billing_address.line1 }}<br />{{ o.billing_address.city }}, {{ o.billing_address.state }} – {{ o.billing_address.postal_code }}</p>
+        @if (o.customer_notes) { <h3 class="mt-16">Notes</h3><p class="addr">{{ o.customer_notes }}</p> }
+      </section>
+    </div>
+  </div>
+
+  <app-modal [open]="cancelOpen()" title="Cancel this order?" size="sm" (close)="cancelOpen.set(false)">
+    <p class="text-muted mt-0">Items will be released back to stock. {{ o.payment_status === 'paid' ? 'Your payment will be refunded to the original method.' : '' }}</p>
+    <label class="label" for="reason">Reason (optional)</label>
+    <select id="reason" class="select mt-8" [(ngModel)]="cancelReason">
+      <option value="">Select a reason</option>
+      <option>Ordered by mistake</option><option>Found a better price</option><option>Delivery is too slow</option><option>Wrong part for my vehicle</option><option>Other</option>
+    </select>
+    <div modal-footer>
+      <button class="btn" (click)="cancelOpen.set(false)">Keep order</button>
+      <button class="btn btn-primary" (click)="cancel()" [disabled]="cancelling()">@if (cancelling()) { <span class="spinner"></span> } Cancel order</button>
+    </div>
+  </app-modal>
+
+  <app-modal [open]="!!reviewItem()" [title]="'Review: ' + (reviewItem()?.product_name ?? '')" (close)="reviewItem.set(null)">
+    @if (reviewError()) { <div class="alert alert-danger mb-16">{{ reviewError() }}</div> }
+    <div class="stack gap-16">
+      <div class="field"><span class="label">Your rating</span><app-rating [editable]="true" [(value)]="review.rating" /></div>
+      <div class="field"><label class="label" for="rt">Title</label><input id="rt" class="input" [(ngModel)]="review.title" maxlength="120" /></div>
+      <div class="field"><label class="label" for="rc">Review</label><textarea id="rc" class="textarea" [(ngModel)]="review.comment" minlength="10" placeholder="At least 10 characters"></textarea></div>
+    </div>
+    <div modal-footer>
+      <button class="btn" (click)="reviewItem.set(null)">Cancel</button>
+      <button class="btn btn-primary" (click)="submitReview()" [disabled]="reviewBusy() || review.comment.length < 10">Submit review</button>
+    </div>
+  </app-modal>
+}

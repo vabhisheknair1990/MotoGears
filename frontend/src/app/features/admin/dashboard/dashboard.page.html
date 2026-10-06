@@ -1,0 +1,114 @@
+<adm-page-header title="Dashboard" subtitle="Store performance at a glance. Revenue excludes cancelled, refunded and unpaid orders.">
+  <button type="button" class="btn" (click)="load()"><app-icon name="refresh" [size]="16" /> Refresh</button>
+</adm-page-header>
+
+@if (error()) {
+  <div class="alert alert-danger"><app-icon name="alert" [size]="18" /> {{ error() }} <button class="btn btn-sm" type="button" (click)="load()">Retry</button></div>
+}
+
+@if (data(); as d) {
+  <div class="kpis">
+    <adm-stat label="Revenue this month" [value]="compact(d.sales.this_month)" icon="rupee" [delta]="d.sales.growth_percent" [hint]="'vs ' + compact(d.sales.last_month) + ' last month'" link="/admin/reports" />
+    <adm-stat label="Orders today" [value]="d.orders.today" icon="package" [hint]="d.orders.total + ' orders all time'" link="/admin/orders" />
+    <adm-stat label="Awaiting action" [value]="d.orders.pending + d.orders.processing" icon="clock" [hint]="d.orders.pending + ' pending · ' + d.orders.processing + ' processing'" link="/admin/orders" />
+    <adm-stat label="Avg. order value" [value]="inr(d.sales.average_order_value, true)" icon="wallet" [hint]="'Today ' + compact(d.sales.today)" />
+    <adm-stat label="Customers" [value]="num(d.customers.total)" icon="users" [hint]="'+' + d.customers.new_this_month + ' this month'" link="/admin/customers" />
+    <adm-stat label="Low / out of stock" [value]="d.inventory.low_stock + ' / ' + d.inventory.out_of_stock" icon="alert" [hint]="num(d.inventory.units_on_hand) + ' units on hand'" link="/admin/inventory" />
+  </div>
+
+  <div class="grid-main">
+    <section class="card chart-card">
+      <div class="card-head">
+        <div>
+          <h2>{{ metric() === 'revenue' ? 'Revenue' : 'Orders' }}</h2>
+          <p class="text-muted text-sm mb-0">{{ metric() === 'revenue' ? inr(chartTotal(), true) : num(chartTotal()) + ' orders' }} · {{ range() === '30d' ? 'last 30 days' : 'last 12 months' }}</p>
+        </div>
+        <div class="seg-row">
+          <div class="seg" role="group" aria-label="Metric">
+            <button type="button" [class.on]="metric() === 'revenue'" (click)="metric.set('revenue')">Revenue</button>
+            <button type="button" [class.on]="metric() === 'orders'" (click)="metric.set('orders')">Orders</button>
+          </div>
+          <div class="seg" role="group" aria-label="Range">
+            <button type="button" [class.on]="range() === '30d'" (click)="range.set('30d')">30 days</button>
+            <button type="button" [class.on]="range() === '12m'" (click)="range.set('12m')">12 months</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <adm-area-chart [data]="chart()" [height]="280" [ariaLabel]="(metric() === 'revenue' ? 'Revenue' : 'Orders') + ' over time'"
+          [format]="metric() === 'revenue' ? inr : num" [axisFormat]="metric() === 'revenue' ? compact : num" />
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Orders by status</h2><a routerLink="/admin/orders" class="link text-sm">View orders</a></div>
+      <div class="card-body"><adm-bar-list [items]="statusBars()" color="#334155" ariaLabel="Orders by status" /></div>
+    </section>
+  </div>
+
+  <div class="grid-3">
+    <section class="card">
+      <div class="card-head"><h2>Top categories</h2><span class="text-muted text-xs">Revenue</span></div>
+      <div class="card-body"><adm-bar-list [items]="topCategories()" ariaLabel="Top categories by revenue" /></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Top brands</h2><span class="text-muted text-xs">Revenue</span></div>
+      <div class="card-body"><adm-bar-list [items]="topBrands()" ariaLabel="Top brands by revenue" /></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Payment methods</h2><span class="text-muted text-xs">Revenue</span></div>
+      <div class="card-body"><adm-bar-list [items]="paymentBars()" color="#334155" ariaLabel="Revenue by payment method" /></div>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-head"><h2>Recent orders</h2><a routerLink="/admin/orders" class="link text-sm">All orders</a></div>
+      <div class="table-wrap flat">
+        <table class="table clickable">
+          <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            @for (o of d.recent_orders; track o.id) {
+              <tr [routerLink]="['/admin/orders', o.id]" tabindex="0" (keydown.enter)="$any($event.currentTarget).click()">
+                <td><div class="fw-600 mono">{{ o.order_number }}</div><div class="text-xs text-muted">{{ o.placed_at | appDate: true }}</div></td>
+                <td>{{ o.customer }}</td>
+                <td><app-status-badge [status]="o.status" [label]="o.status_label" /></td>
+                <td class="num fw-600">{{ o.grand_total | inr }}</td>
+              </tr>
+            } @empty { <tr><td colspan="4" class="text-muted">No orders yet.</td></tr> }
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Top products</h2><a routerLink="/admin/reports" class="link text-sm">Reports</a></div>
+      <div class="table-wrap flat">
+        <table class="table">
+          <thead><tr><th>Product</th><th class="num">Units</th><th class="num">Revenue</th></tr></thead>
+          <tbody>
+            @for (p of d.top_products; track p.id) {
+              <tr><td><a class="fw-600 link-plain" [routerLink]="['/admin/products', p.id, 'edit']">{{ p.name }}</a><div class="text-xs text-muted mono">{{ p.sku }}</div></td><td class="num">{{ p.units }}</td><td class="num fw-600">{{ p.revenue | inr: 'whole' }}</td></tr>
+            } @empty { <tr><td colspan="3" class="text-muted">No sales yet.</td></tr> }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head"><h2>Low stock alerts</h2><a routerLink="/admin/inventory" [queryParams]="{ status: 'low_stock' }" class="link text-sm">Manage inventory</a></div>
+    <div class="table-wrap flat">
+      <table class="table">
+        <thead><tr><th>Product</th><th>SKU</th><th class="num">Available</th><th class="num">Threshold</th><th>Status</th></tr></thead>
+        <tbody>
+          @for (s of d.low_stock; track s.id) {
+            <tr><td><a class="link-plain fw-600" [routerLink]="['/admin/inventory', s.id]">{{ s.product }}</a></td><td class="mono text-sm">{{ s.sku }}</td><td class="num fw-600">{{ s.available }}</td><td class="num">{{ s.threshold }}</td><td><app-status-badge [status]="s.status" /></td></tr>
+          } @empty { <tr><td colspan="5" class="text-muted">All products are well stocked.</td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </section>
+} @else if (!error()) {
+  <div class="kpis">@for (i of [1, 2, 3, 4, 5, 6]; track i) { <div class="card sk-card"><div class="skeleton" style="height:14px;width:50%"></div><div class="skeleton" style="height:30px;width:70%;margin-top:12px"></div></div> }</div>
+  <div class="card"><div class="skeleton" style="height:320px;margin:16px"></div></div>
+}

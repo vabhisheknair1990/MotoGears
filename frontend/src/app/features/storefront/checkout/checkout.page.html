@@ -1,0 +1,158 @@
+<div class="container co">
+  <div class="co-head">
+    <a routerLink="/cart" class="text-sm text-muted"><app-icon name="arrow-left" [size]="14" /> Back to cart</a>
+    <h1>Checkout</h1>
+  </div>
+
+  @if (loading() && !summary()) {
+    <div class="skeleton" style="height: 320px"></div>
+  } @else if (loadError()) {
+    <div class="alert alert-danger">{{ loadError() }} <button class="btn btn-sm" (click)="load()">Retry</button></div>
+  } @else if (!cart()?.items?.length) {
+    <div class="card"><app-empty-state icon="cart" title="Your cart is empty." message="Add some parts before checking out."><a class="btn btn-primary" routerLink="/shop">Shop now</a></app-empty-state></div>
+  } @else {
+    <app-checkout-stepper [steps]="steps" [current]="step()" (go)="goTo($event)" />
+    <div class="co-grid">
+      <section>
+        @switch (step()) {
+          <!-- STEP 1: ADDRESS -->
+          @case (0) {
+            <div class="card card-body">
+              <div class="row between mb-16"><h2 class="h">Delivery address</h2>
+                @if (!addingAddress() && summary()!.addresses.length) { <button class="btn btn-sm" (click)="addingAddress.set(true)"><app-icon name="plus" [size]="15" /> Add new</button> }
+              </div>
+              @if (addingAddress()) {
+                <app-address-form [busy]="savingAddress()" submitLabel="Save & use this address" [serverErrors]="addressErrors()"
+                                  [cancellable]="summary()!.addresses.length > 0" (saved)="saveAddress($event)" (cancelled)="addingAddress.set(false)" />
+              } @else {
+                <div class="addr-list" role="radiogroup" aria-label="Saved addresses">
+                  @for (a of summary()!.addresses; track a.id) {
+                    <label class="addr" [class.on]="a.id === addressId()">
+                      <input type="radio" name="addr" [checked]="a.id === addressId()" (change)="addressId.set(a.id)" />
+                      <div>
+                        <div class="row gap-8"><strong>{{ a.name }}</strong><span class="badge">{{ a.label }}</span>@if (a.is_default) { <span class="badge badge-info">Default</span> }</div>
+                        <p>{{ a.line1 }}@if (a.line2) {, {{ a.line2 }}}@if (a.landmark) {, {{ a.landmark }}}<br />{{ a.city }}, {{ a.state }} – {{ a.postal_code }}</p>
+                        <span class="text-sm text-muted">Phone: {{ a.phone }}</span>
+                      </div>
+                    </label>
+                  }
+                </div>
+              }
+            </div>
+          }
+          <!-- STEP 2: SHIPPING -->
+          @case (1) {
+            <div class="card card-body">
+              <h2 class="h mb-16">Shipping method</h2>
+              <div class="opts">
+                @for (m of summary()!.shipping_methods; track m.code) {
+                  <label class="opt" [class.on]="m.code === shipping()">
+                    <input type="radio" name="ship" [checked]="m.code === shipping()" (change)="chooseShipping(m.code)" />
+                    <app-icon [name]="m.code === 'express' ? 'zap' : 'truck'" [size]="22" />
+                    <div class="grow"><strong>{{ m.label }}</strong><span class="text-sm text-muted">{{ m.description }}</span></div>
+                    <strong>{{ m.cost > 0 ? (m.cost | inr) : 'FREE' }}</strong>
+                  </label>
+                }
+              </div>
+            </div>
+          }
+          <!-- STEP 3: PAYMENT -->
+          @case (2) {
+            <div class="card card-body">
+              <h2 class="h mb-8">Payment</h2>
+              @if (hasDemoMethods()) {
+                <div class="alert alert-info mb-16"><app-icon name="info" [size]="18" /> "Demo" card and UPI payments are simulated — no real money is charged.</div>
+              }
+              <div class="opts">
+                @for (pm of summary()!.payment_methods; track pm.code) {
+                  <label class="opt" [class.on]="pm.code === payment()" [class.disabled]="!pm.available">
+                    <input type="radio" name="pay" [checked]="pm.code === payment()" [disabled]="!pm.available" (change)="payment.set(pm.code)" />
+                    <app-icon [name]="pm.code === 'cod' ? 'wallet' : pm.code === 'razorpay' ? 'shield' : pm.code === 'demo_card' ? 'card' : 'phone'" [size]="22" />
+                    <div class="grow"><strong>{{ pm.label }}</strong><span class="text-sm text-muted">{{ pm.available ? pm.description : pm.unavailable_reason }}</span></div>
+                  </label>
+                  @if (pm.code === payment() && pm.code === 'razorpay') {
+                    <div class="pay-form rzp-note text-sm">
+                      <app-icon name="lock" [size]="16" /> After you place the order, Razorpay's secure window opens to pay by UPI, card, net banking or wallet. Your card details go directly to Razorpay — never to our servers.
+                    </div>
+                  }
+                  @if (pm.code === payment() && pm.code === 'demo_card') {
+                    <form class="pay-form form-grid cols-2" [formGroup]="card">
+                      <div class="field span-2"><label class="label" for="cc-num">Card number</label><input id="cc-num" class="input mono" formControlName="card_number" inputmode="numeric" autocomplete="off" [class.invalid]="cardError('card_number')" />
+                        <span class="hint">Use 4111 1111 1111 1111 (success) or 4000 0000 0000 0002 (decline).</span></div>
+                      <div class="field span-2"><label class="label" for="cc-name">Name on card</label><input id="cc-name" class="input" formControlName="card_name" autocomplete="off" [class.invalid]="cardError('card_name')" /></div>
+                      <div class="field"><label class="label" for="cc-exp">Expiry (MM/YY)</label><input id="cc-exp" class="input mono" formControlName="expiry" placeholder="MM/YY" autocomplete="off" [class.invalid]="cardError('expiry')" /></div>
+                      <div class="field"><label class="label" for="cc-cvv">CVV</label><input id="cc-cvv" class="input mono" formControlName="cvv" type="password" inputmode="numeric" maxlength="4" autocomplete="off" [class.invalid]="cardError('cvv')" /></div>
+                    </form>
+                  }
+                  @if (pm.code === payment() && pm.code === 'demo_upi') {
+                    <form class="pay-form" [formGroup]="upi">
+                      <div class="field"><label class="label" for="upi-id">UPI ID</label><input id="upi-id" class="input" formControlName="upi_id" placeholder="name@bank" [class.invalid]="upi.controls.upi_id.invalid && upi.controls.upi_id.touched" />
+                        <span class="hint">Use success&#64;upi to succeed or failure&#64;upi to simulate a failed payment.</span></div>
+                    </form>
+                  }
+                }
+              </div>
+            </div>
+          }
+          <!-- STEP 4: REVIEW -->
+          @case (3) {
+            <div class="card card-body review">
+              <h2 class="h mb-16">Review your order</h2>
+              <div class="rev-grid">
+                <div><h4>Deliver to</h4>
+                  @if (selectedAddress(); as a) { <p><strong>{{ a.name }}</strong><br />{{ a.line1 }}@if (a.line2) {, {{ a.line2 }}}<br />{{ a.city }}, {{ a.state }} – {{ a.postal_code }}<br />{{ a.phone }}</p> }
+                  <button class="link text-sm" (click)="step.set(0)">Change</button></div>
+                <div><h4>Shipping</h4><p>{{ selectedShipping()?.label }}<br /><span class="text-muted text-sm">{{ selectedShipping()?.description }}</span></p><button class="link text-sm" (click)="step.set(1)">Change</button></div>
+                <div><h4>Payment</h4><p>{{ paymentOption()?.label }}
+                  @if (payment() === 'demo_card') { <br /><span class="text-muted text-sm mono">•••• {{ (card.value.card_number ?? '').replaceAll(' ', '').slice(-4) }}</span> }
+                  @if (payment() === 'demo_upi') { <br /><span class="text-muted text-sm">{{ upi.value.upi_id }}</span> }
+                </p><button class="link text-sm" (click)="step.set(2)">Change</button></div>
+              </div>
+              <h4 class="mt-16">Items</h4>
+              <ul class="list-reset rev-items">
+                @for (i of cart()!.items; track i.id) {
+                  <li><img [src]="i.product.image" alt="" class="thumb" /><span class="grow">{{ i.product.name }} <span class="text-muted">× {{ i.quantity }}</span></span><strong>{{ i.line_subtotal | inr }}</strong></li>
+                }
+              </ul>
+              <div class="field mt-16">
+                <label class="label" for="notes">Delivery notes (optional)</label>
+                <textarea id="notes" class="textarea" style="min-height: 70px" maxlength="500" [value]="notes()" (input)="notes.set($any($event.target).value)" placeholder="E.g. call before delivery"></textarea>
+              </div>
+              @if (placeError()) { <div class="alert alert-danger mt-16"><app-icon name="alert" [size]="18" /> {{ placeError() }}</div> }
+            </div>
+          }
+        }
+
+        <div class="nav-btns">
+          @if (step() > 0) { <button class="btn btn-lg" (click)="back()"><app-icon name="arrow-left" [size]="16" /> Back</button> } @else { <span></span> }
+          @if (step() < 3) {
+            <button class="btn btn-primary btn-lg" (click)="next()" [disabled]="addingAddress() && step() === 0">Continue <app-icon name="arrow-right" [size]="16" /></button>
+          } @else {
+            <button class="btn btn-primary btn-lg" (click)="placeOrder()" [disabled]="placing() || !cart()?.is_checkout_ready">
+              @if (placing()) { <span class="spinner"></span> {{ payment() === 'razorpay' ? 'Waiting for payment…' : 'Placing order…' }} } @else { <app-icon name="lock" [size]="16" /> {{ payment() === 'razorpay' ? 'Pay securely' : 'Place order' }} · {{ cart()!.grand_total | inr }} }
+            </button>
+          }
+        </div>
+      </section>
+
+      <aside class="card card-body totals">
+        <h3>Order summary</h3>
+        <ul class="list-reset mini">
+          @for (i of cart()!.items; track i.id) {
+            <li><span class="q">{{ i.quantity }}</span><img [src]="i.product.image" alt="" class="thumb" /><span class="grow clamp-2 text-sm">{{ i.product.name }}</span><span class="text-sm fw-600">{{ i.line_subtotal | inr }}</span></li>
+          }
+        </ul>
+        <hr />
+        @let c = cart()!;
+        <div class="row between"><span>Subtotal</span><span>{{ c.subtotal | inr }}</span></div>
+        @if (c.discount > 0) { <div class="row between text-success"><span>Discount @if (c.coupon) { ({{ c.coupon.code }}) }</span><span>−{{ c.discount | inr }}</span></div> }
+        <div class="row between"><span>Shipping</span><span>{{ c.shipping > 0 ? (c.shipping | inr) : 'FREE' }}</span></div>
+        <div class="row between"><span>GST</span><span>{{ c.tax | inr }}</span></div>
+        <hr />
+        <div class="row between grand"><span>Total</span><span>{{ c.grand_total | inr }}</span></div>
+        @if (!c.coupon) { <a routerLink="/cart" class="text-sm link">Have a coupon? Apply it in your cart</a> }
+        <p class="secure"><app-icon name="shield" [size]="16" /> Prices, stock and discounts are verified by our server when you place the order.</p>
+      </aside>
+    </div>
+  }
+</div>

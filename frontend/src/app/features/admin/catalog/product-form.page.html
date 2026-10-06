@@ -1,0 +1,278 @@
+@if (state() === 'missing') {
+  <div class="card"><app-empty-state icon="box" title="Product not found" message="It may have been permanently removed."><a routerLink="/admin/products" class="btn btn-primary">Back to products</a></app-empty-state></div>
+} @else if (state() === 'loading') {
+  <div class="skeleton" style="height:40px;width:40%;margin-bottom:20px"></div>
+  <div class="card"><div class="skeleton" style="height:420px;margin:16px"></div></div>
+} @else {
+  @let p = product();
+  <adm-page-header [title]="isNew() ? 'Add product' : (p?.name ?? 'Edit product')" [subtitle]="isNew() ? 'Prices exclude GST. Stock can be adjusted later in Inventory.' : 'SKU ' + p?.sku + ' · updated ' + (p?.updated_at?.slice(0, 10) ?? '')" back="/admin/products" backLabel="Products">
+    @if (p) {
+      @if (p.deleted_at) { <span class="badge badge-danger">Deleted</span> }
+      <a class="btn" [routerLink]="['/products', p.slug]" target="_blank" rel="noopener"><app-icon name="external" [size]="16" /> View in store</a>
+      @if (!p.deleted_at) { <button type="button" class="btn btn-ghost danger-text" (click)="remove()"><app-icon name="trash" [size]="16" /> Delete</button> }
+    }
+  </adm-page-header>
+
+  <nav class="secnav" aria-label="Form sections">
+    @for (s of sections; track s.id) { <button type="button" (click)="scrollTo(s.id)">{{ s.label }}</button> }
+  </nav>
+
+  <form [formGroup]="form" (ngSubmit)="save()" novalidate class="layout">
+    <div class="main">
+      @if (formError()) {
+        <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /> <div>{{ formError() }}@for (e of serverErrors(); track $index) { <div class="text-sm">{{ e }}</div> }</div></div>
+      }
+
+      <section class="card" id="sec-basics">
+        <div class="card-head"><h2>Basic information</h2></div>
+        <div class="card-body">
+          <div class="field">
+            <label class="label" for="p-name">Product name <span class="req">*</span></label>
+            <input id="p-name" class="input" formControlName="name" placeholder="e.g. Bosch Aerotwin Wiper Blade Set 24/16 in" />
+            @if (invalid('name')) { <span class="error-text">{{ err('name', 'Enter the product name (max 190 characters).') }}</span> }
+          </div>
+          <div class="form-grid cols-3">
+            <div class="field">
+              <label class="label" for="p-sku">SKU <span class="req">*</span></label>
+              <input id="p-sku" class="input mono upper" formControlName="sku" placeholder="BOS-WB-2416" />
+              @if (invalid('sku')) { <span class="error-text">{{ err('sku', 'Letters, numbers, dash and underscore only.') }}</span> }
+            </div>
+            <div class="field">
+              <label class="label" for="p-part">Part number</label>
+              <input id="p-part" class="input mono" formControlName="part_number" />
+            </div>
+            <div class="field">
+              <label class="label" for="p-slug">URL slug</label>
+              <input id="p-slug" class="input" formControlName="slug" placeholder="auto from name" />
+              @if (invalid('slug')) { <span class="error-text">{{ err('slug', 'Lowercase letters, numbers and dashes.') }}</span> }
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="p-short">Short description</label>
+            <textarea id="p-short" class="textarea" rows="2" formControlName="short_description" placeholder="One or two lines shown on product cards"></textarea>
+            @if (invalid('short_description')) { <span class="error-text">Maximum 500 characters.</span> }
+          </div>
+          <div class="field">
+            <label class="label" for="p-desc">Full description (HTML allowed)</label>
+            <textarea id="p-desc" class="textarea" rows="8" formControlName="description"></textarea>
+            <span class="hint">Supports basic HTML (paragraphs, lists, bold). Scripts are stripped on display.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="sec-pricing">
+        <div class="card-head"><h2>Pricing &amp; tax</h2>@if (discount()) { <span class="badge badge-brand">{{ discount() }}% off MRP</span> }</div>
+        <div class="card-body">
+          <div class="form-grid cols-4">
+            <div class="field">
+              <label class="label" for="p-mrp">MRP (₹) <span class="req">*</span></label>
+              <input id="p-mrp" class="input" type="number" min="0" step="0.01" formControlName="mrp" />
+              @if (invalid('mrp')) { <span class="error-text">{{ err('mrp', 'Enter the MRP.') }}</span> }
+            </div>
+            <div class="field">
+              <label class="label" for="p-price">Selling price (₹) <span class="req">*</span></label>
+              <input id="p-price" class="input" type="number" min="0" step="0.01" formControlName="price" [class.invalid]="form.errors?.['priceAboveMrp'] && form.controls.price.touched" />
+              @if (invalid('price')) { <span class="error-text">{{ err('price', 'Enter the selling price.') }}</span> }
+              @else if (form.errors?.['priceAboveMrp']) { <span class="error-text">Must not exceed MRP.</span> }
+            </div>
+            <div class="field">
+              <label class="label" for="p-cost">Cost price (₹)</label>
+              <input id="p-cost" class="input" type="number" min="0" step="0.01" formControlName="cost_price" />
+              <span class="hint">@if (margin() !== null) { Margin {{ margin() }}% } @else { Staff only, for margin reports }</span>
+            </div>
+            <div class="field">
+              <label class="label" for="p-tax">GST rate</label>
+              <select id="p-tax" class="select" formControlName="tax_rate">
+                @for (t of lookups()?.tax_rates ?? [0, 5, 12, 18, 28]; track t) { <option [ngValue]="t">{{ t }}%</option> }
+              </select>
+              <span class="hint">Customer pays {{ priceInclGst() }} incl. GST</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      @if (isNew()) {
+        <section class="card">
+          <div class="card-head"><h2>Opening stock</h2></div>
+          <div class="card-body form-grid cols-3">
+            <div class="field"><label class="label" for="p-stock">Initial quantity</label><input id="p-stock" class="input" type="number" min="0" formControlName="initial_stock" /></div>
+            <div class="field"><label class="label" for="p-low">Low-stock alert at</label><input id="p-low" class="input" type="number" min="0" formControlName="low_stock_threshold" /></div>
+            <div class="field chk"><label class="check"><input type="checkbox" formControlName="allow_backorder" /> Allow backorders</label></div>
+          </div>
+        </section>
+      } @else if (p?.inventory; as inv) {
+        <section class="card">
+          <div class="card-head"><h2>Stock</h2><a class="link text-sm" [routerLink]="['/admin/inventory', inv.id]">Adjust in Inventory →</a></div>
+          <div class="card-body stock">
+            <div><span class="text-muted text-sm">On hand</span><strong>{{ inv.quantity }}</strong></div>
+            <div><span class="text-muted text-sm">Reserved</span><strong>{{ inv.reserved }}</strong></div>
+            <div><span class="text-muted text-sm">Available</span><strong>{{ inv.available }}</strong></div>
+            <div><span class="text-muted text-sm">Status</span><app-status-badge [status]="inv.status" /></div>
+          </div>
+        </section>
+      }
+
+      <section class="card" id="sec-images">
+        <div class="card-head"><h2>Images</h2><span class="text-muted text-sm">{{ isNew() ? 'Queued for upload' : images().length + ' / 15' }}</span></div>
+        <div class="card-body">
+          <adm-product-images [productId]="p?.id ?? null" [images]="images()" (imagesChange)="images.set($event)" (queuedChange)="onQueued($event)" />
+        </div>
+      </section>
+
+      <section class="card" id="sec-fitment">
+        <div class="card-head"><h2>Vehicle compatibility</h2><span class="text-muted text-sm">{{ compat().length }} rows</span></div>
+        <div class="card-body">
+          <label class="check mb-12"><input type="checkbox" formControlName="is_universal" /> Universal fit — fits every {{ value().vehicle_type === 'universal' ? 'vehicle' : value().vehicle_type }} (no fitment rows needed)</label>
+          <adm-compatibility-editor [rows]="compat()" (rowsChange)="setCompat($event)" />
+        </div>
+      </section>
+
+      <section class="card" id="sec-specs">
+        <div class="card-head"><h2>Specifications</h2></div>
+        <div class="card-body">
+          <div class="form-grid cols-4">
+            <div class="field"><label class="label" for="p-mat">Material</label><input id="p-mat" class="input" formControlName="material" /></div>
+            <div class="field"><label class="label" for="p-dim">Dimensions</label><input id="p-dim" class="input" formControlName="dimensions" placeholder="600 × 400 mm" /></div>
+            <div class="field"><label class="label" for="p-wt">Weight (kg)</label><input id="p-wt" class="input" type="number" min="0" step="0.01" formControlName="weight_kg" /></div>
+            <div class="field"><label class="label" for="p-war">Warranty</label><input id="p-war" class="input" formControlName="warranty" placeholder="1 year manufacturer" /></div>
+          </div>
+          <div class="field"><label class="label" for="p-inst">Installation info</label><textarea id="p-inst" class="textarea" rows="3" formControlName="installation_info"></textarea></div>
+          <div class="field"><label class="label" for="p-inc">What's in the box</label><adm-tag-input inputId="p-inc" [value]="included()" placeholder="Add an item and press Enter" (valueChange)="setIncluded($event)" /></div>
+          <div class="field">
+            <label class="label" for="p-vid">Video URL</label>
+            <input id="p-vid" class="input" formControlName="video_url" placeholder="https://www.youtube.com/watch?v=…" />
+            @if (invalid('video_url')) { <span class="error-text">{{ err('video_url', 'Enter a full https:// URL.') }}</span> }
+          </div>
+          <h3 class="sub-h">Specification table</h3>
+          <div formArrayName="specifications" class="rows">
+            @for (g of specs.controls; track g; let i = $index) {
+              <div class="pair" [formGroupName]="i">
+                <input class="input" formControlName="label" placeholder="Label (e.g. Voltage)" [attr.aria-label]="'Specification ' + (i + 1) + ' label'" />
+                <input class="input" formControlName="value" placeholder="Value (e.g. 12 V)" [attr.aria-label]="'Specification ' + (i + 1) + ' value'" />
+                <button type="button" class="icon-btn sm" (click)="removeAt(specs, i)" aria-label="Remove specification"><app-icon name="x" [size]="16" /></button>
+              </div>
+            }
+          </div>
+          <button type="button" class="btn btn-sm" (click)="addSpec()"><app-icon name="plus" [size]="14" /> Add row</button>
+        </div>
+      </section>
+
+      <section class="card" id="sec-attributes">
+        <div class="card-head"><h2>Filter attributes</h2><a class="link text-sm" routerLink="/admin/attributes">Manage attributes</a></div>
+        <div class="card-body attrs">
+          @for (a of lookups()?.attributes ?? []; track a.id) {
+            <fieldset>
+              <legend>{{ a.name }}</legend>
+              <div class="chips">
+                @for (v of a.values; track v.id) {
+                  <button type="button" class="chip" [class.active]="attributeIds().has(v.id)" [attr.aria-pressed]="attributeIds().has(v.id)" (click)="toggleAttr(v.id)">{{ v.value }}</button>
+                }
+              </div>
+            </fieldset>
+          } @empty { <p class="text-muted text-sm mb-0">No attributes defined yet.</p> }
+        </div>
+      </section>
+
+      <section class="card" id="sec-variants">
+        <div class="card-head"><h2>Variants</h2><span class="text-muted text-sm">Optional — sizes / colours with their own SKU</span></div>
+        <div class="card-body">
+          <div formArrayName="variants" class="rows">
+            @for (g of variantsArr.controls; track g; let i = $index) {
+              <div class="variant" [formGroupName]="i">
+                <input class="input" formControlName="name" placeholder="Name (e.g. 24 inch)" aria-label="Variant name" />
+                <input class="input mono upper" formControlName="sku" placeholder="SKU" aria-label="Variant SKU" />
+                <input class="input" type="number" step="0.01" formControlName="price_adjustment" placeholder="± price" aria-label="Price adjustment" />
+                <label class="check"><input type="checkbox" formControlName="is_active" /> Active</label>
+                <button type="button" class="icon-btn sm" (click)="removeAt(variantsArr, i)" aria-label="Remove variant"><app-icon name="x" [size]="16" /></button>
+              </div>
+            }
+          </div>
+          <button type="button" class="btn btn-sm" (click)="addVariant()"><app-icon name="plus" [size]="14" /> Add variant</button>
+        </div>
+      </section>
+
+      <section class="card" id="sec-faqs">
+        <div class="card-head"><h2>Product FAQs</h2></div>
+        <div class="card-body">
+          <div formArrayName="faqs" class="rows">
+            @for (g of faqs.controls; track g; let i = $index) {
+              <div class="faq" [formGroupName]="i">
+                <div class="grow">
+                  <input class="input" formControlName="question" placeholder="Question" [attr.aria-label]="'FAQ ' + (i + 1) + ' question'" />
+                  <textarea class="textarea" rows="2" formControlName="answer" placeholder="Answer" [attr.aria-label]="'FAQ ' + (i + 1) + ' answer'"></textarea>
+                </div>
+                <button type="button" class="icon-btn sm" (click)="removeAt(faqs, i)" aria-label="Remove FAQ"><app-icon name="x" [size]="16" /></button>
+              </div>
+            }
+          </div>
+          <button type="button" class="btn btn-sm" (click)="addFaq()"><app-icon name="plus" [size]="14" /> Add FAQ</button>
+        </div>
+      </section>
+
+      <section class="card" id="sec-seo">
+        <div class="card-head"><h2>Search engine listing</h2></div>
+        <div class="card-body">
+          <div class="field"><label class="label" for="p-mt">Meta title</label><input id="p-mt" class="input" formControlName="meta_title" [placeholder]="value().name ?? ''" /><span class="hint">{{ (value().meta_title ?? '').length }}/190</span></div>
+          <div class="field"><label class="label" for="p-md">Meta description</label><textarea id="p-md" class="textarea" rows="2" formControlName="meta_description"></textarea><span class="hint">{{ (value().meta_description ?? '').length }}/500 · ~160 shown by Google</span></div>
+          <div class="serp">
+            <div class="serp-url">motogears.in › products › {{ value().slug || 'auto-slug' }}</div>
+            <div class="serp-title">{{ value().meta_title || value().name || 'Product title' }}</div>
+            <div class="serp-desc">{{ (value().meta_description || value().short_description || 'Description preview…').slice(0, 160) }}</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section class="card">
+        <div class="card-head"><h2>Status</h2></div>
+        <div class="card-body">
+          <label class="check"><input type="checkbox" formControlName="is_active" /> Active — visible in the store</label>
+          <label class="check"><input type="checkbox" formControlName="is_featured" /> Featured on homepage</label>
+          @if (p) { <p class="text-xs text-muted mb-0 mt-8">{{ p.sold_count }} sold · {{ p.view_count }} views · ★ {{ p.rating }} ({{ p.review_count }})</p> }
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>Organisation</h2></div>
+        <div class="card-body">
+          <div class="field">
+            <label class="label" for="p-cat">Category <span class="req">*</span></label>
+            <select id="p-cat" class="select" formControlName="category_id">
+              <option [ngValue]="null">Choose…</option>
+              @for (c of categories(); track c.value) { <option [ngValue]="c.value">{{ c.label }}</option> }
+            </select>
+            @if (invalid('category_id')) { <span class="error-text">{{ err('category_id', 'Choose a category.') }}</span> }
+          </div>
+          <div class="field">
+            <label class="label" for="p-brand">Brand <span class="req">*</span></label>
+            <select id="p-brand" class="select" formControlName="brand_id">
+              <option [ngValue]="null">Choose…</option>
+              @for (b of lookups()?.brands ?? []; track b.id) { <option [ngValue]="b.id">{{ b.name }}</option> }
+            </select>
+            @if (invalid('brand_id')) { <span class="error-text">{{ err('brand_id', 'Choose a brand.') }}</span> }
+          </div>
+          <div class="field">
+            <label class="label" for="p-vt">Vehicle type <span class="req">*</span></label>
+            <select id="p-vt" class="select" formControlName="vehicle_type">
+              <option value="car">Car</option><option value="motorcycle">Motorcycle</option><option value="universal">Universal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label" for="p-pos">Fitment position</label>
+            <select id="p-pos" class="select" formControlName="position">
+              <option value="">Not applicable</option>
+              @for (pos of lookups()?.positions ?? []; track pos) { <option [value]="pos">{{ pos }}</option> }
+            </select>
+          </div>
+          <div class="field"><label class="label" for="p-tags">Search tags</label><adm-tag-input inputId="p-tags" [value]="tags()" placeholder="wiper, rain, monsoon…" (valueChange)="setTags($event)" /></div>
+        </div>
+      </section>
+    </aside>
+
+    <div class="savebar">
+      <span class="text-sm text-muted">@if (hasUnsavedChanges()) { Unsaved changes } @else { All changes saved }</span>
+      <a routerLink="/admin/products" class="btn btn-ghost">Cancel</a>
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> } {{ isNew() ? 'Create product' : 'Save changes' }}</button>
+    </div>
+  </form>
+}

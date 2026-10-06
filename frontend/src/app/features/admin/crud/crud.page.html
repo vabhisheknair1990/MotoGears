@@ -1,0 +1,179 @@
+@let c = cfg();
+<adm-page-header [title]="c.title" [subtitle]="c.subtitle ?? null">
+  @if (c.exportFile) {
+    <button type="button" class="btn" (click)="exportFile()"><app-icon name="download" [size]="16" /> Export CSV</button>
+  }
+  @if (c.create !== false) {
+    <button type="button" class="btn btn-primary" (click)="openCreate()"><app-icon name="plus" [size]="16" /> New {{ c.singular.toLowerCase() }}</button>
+  }
+</adm-page-header>
+
+<section class="card">
+  <div class="toolbar">
+    @if (c.search !== false) {
+      <adm-search [placeholder]="c.search || 'Search ' + c.title.toLowerCase() + '…'" [value]="list.value('search')" (search)="list.set({ search: $event || null })" />
+    }
+    @for (f of c.filters ?? []; track f.key) {
+      <select class="select input-sm" [attr.aria-label]="f.label" [value]="list.value(f.key)" (change)="setFilter(f.key, $any($event.target).value)">
+        <option value="">All {{ f.label.toLowerCase() }}</option>
+        @for (o of filterOptions(f); track o.value) {
+          <option [value]="o.value" [selected]="list.value(f.key) === '' + o.value">{{ o.label }}</option>
+        }
+      </select>
+    }
+    <span class="grow"></span>
+    <span class="count">{{ list.meta()?.total ?? list.items().length }} {{ (list.meta()?.total ?? list.items().length) === 1 ? c.singular.toLowerCase() : c.title.toLowerCase() }}</span>
+  </div>
+
+  @if (list.error(); as err) {
+    <div class="alert alert-danger m-16"><app-icon name="alert" [size]="18" /> {{ err }} <button class="btn btn-sm" type="button" (click)="list.load()">Retry</button></div>
+  }
+
+  <div class="table-wrap" [class.busy]="list.loading() && list.items().length">
+    <table class="table">
+      <thead>
+        <tr>
+          @for (col of c.columns; track col.key) {
+            <th scope="col" [class.num]="col.align === 'right'" [class.center]="col.align === 'center'" [class.hide-mobile]="col.hideMobile">{{ col.label }}</th>
+          }
+          <th scope="col" class="act"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (list.loading() && !list.items().length) {
+          @for (i of skeletonRows; track i) {
+            <tr>@for (col of c.columns; track col.key) { <td [class.hide-mobile]="col.hideMobile"><div class="skeleton sk"></div></td> }<td></td></tr>
+          }
+        } @else {
+          @for (row of list.items(); track row['id']) {
+            <tr>
+              @for (col of c.columns; track col.key) {
+                <td [class.num]="col.align === 'right'" [class.center]="col.align === 'center'" [class.hide-mobile]="col.hideMobile">
+                  @switch (col.type) {
+                    @case ('image') {
+                      @if (cell(row, col)) { <img class="thumb" [src]="cell(row, col)" alt="" loading="lazy" /> } @else { <span class="thumb ph"><app-icon name="image" [size]="16" /></span> }
+                    }
+                    @case ('strong') {
+                      <div class="strong">{{ text(row, col) }}</div>
+                      @if (col.sub?.(row); as s) { <div class="sub">{{ s }}</div> }
+                    }
+                    @case ('status') { <app-status-badge [status]="'' + cell(row, col)" /> }
+                    @case ('bool') {
+                      @if (cell(row, col)) { <span class="badge badge-success">Yes</span> } @else { <span class="badge">No</span> }
+                    }
+                    @case ('toggle') {
+                      <label class="switch" [title]="cell(row, col) ? 'Active — click to disable' : 'Inactive — click to enable'">
+                        <input type="checkbox" [checked]="!!cell(row, col)" [disabled]="busyRow() === row['id']" (change)="toggle(row)" [attr.aria-label]="'Toggle ' + c.rowTitle(row)" />
+                        <span class="track"></span>
+                      </label>
+                    }
+                    @case ('code') { <span class="mono code">{{ text(row, col) }}</span> }
+                    @case ('rating') { <span class="rating">★ {{ cell(row, col) ?? '—' }}</span> }
+                    @default {
+                      {{ text(row, col) }}
+                      @if (col.sub?.(row); as s) { <div class="sub">{{ s }}</div> }
+                    }
+                  }
+                </td>
+              }
+              <td class="act">
+                <div class="acts">
+                  @for (l of c.links ?? []; track l.label) {
+                    <a class="btn btn-sm btn-ghost" [routerLink]="l.path(row)" [queryParams]="linkQuery(l, row)">{{ l.label }}</a>
+                  }
+                  @if (c.edit !== false) {
+                    <button type="button" class="icon-btn sm" (click)="openEdit(row)" [attr.aria-label]="(c.readOnly ? 'View ' : 'Edit ') + c.rowTitle(row)" [title]="c.readOnly ? 'View' : 'Edit'"><app-icon [name]="c.readOnly ? 'eye' : 'edit'" [size]="16" /></button>
+                  }
+                  @if (c.remove !== false) {
+                    <button type="button" class="icon-btn sm danger" (click)="remove(row)" [disabled]="busyRow() === row['id']" [attr.aria-label]="'Delete ' + c.rowTitle(row)" title="Delete"><app-icon name="trash" [size]="16" /></button>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td [attr.colspan]="c.columns.length + 1">
+              <app-empty-state icon="box" [title]="'No ' + c.title.toLowerCase() + ' found'" [message]="c.emptyText ?? 'Try a different search or filter.'">
+                @if (c.create !== false) { <button type="button" class="btn btn-primary btn-sm" (click)="openCreate()">Add {{ c.singular.toLowerCase() }}</button> }
+              </app-empty-state>
+            </td></tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (c.paginated !== false) {
+    <div class="pg"><app-pagination [meta]="list.meta()" (pageChange)="list.goTo($event)" /></div>
+  }
+</section>
+
+<app-modal [open]="editing() !== undefined" [title]="c.readOnly ? c.singular + ' details' : (editing() ? 'Edit ' : 'New ') + c.singular.toLowerCase()" [size]="c.modalSize ?? 'lg'" (close)="closeForm()">
+  @if (editing() !== undefined) {
+    <form [formGroup]="form()" (ngSubmit)="save()" id="crud-form" novalidate>
+      @if (formError()) { <div class="alert alert-danger"><app-icon name="alert" [size]="18" /> {{ formError() }}</div> }
+      <div class="form-grid cols-2">
+        @for (f of visibleFields(); track f.key) {
+          <div class="field" [class.full]="f.full || f.type === 'textarea' || f.type === 'html' || f.type === 'tags' || f.type === 'multiselect' || f.type === 'products' || f.type === 'image'">
+            @if (f.type !== 'checkbox') {
+              <label class="label" [attr.for]="'f-' + f.key">{{ f.label }} @if (f.required || (f.requiredOnCreate && !editing())) { <span class="req">*</span> }</label>
+            }
+            @switch (f.type) {
+              @case ('textarea') { <textarea class="textarea" [id]="'f-' + f.key" [formControlName]="f.key" [rows]="f.rows ?? 4" [placeholder]="f.placeholder ?? ''"></textarea> }
+              @case ('html') { <textarea class="textarea mono-area" [id]="'f-' + f.key" [formControlName]="f.key" [rows]="f.rows ?? 12" [placeholder]="f.placeholder ?? '<p>…</p>'"></textarea> }
+              @case ('select') {
+                <select class="select" [id]="'f-' + f.key" [formControlName]="f.key" (change)="onSelect(f)">
+                  <option [ngValue]="null">{{ f.placeholder ?? '— Select —' }}</option>
+                  @for (g of groups(f); track g.group) {
+                    @if (g.group) {
+                      <optgroup [label]="g.group">@for (o of g.options; track o.value) { <option [ngValue]="o.value">{{ o.label }}</option> }</optgroup>
+                    } @else {
+                      @for (o of g.options; track o.value) { <option [ngValue]="o.value">{{ o.label }}</option> }
+                    }
+                  }
+                </select>
+              }
+              @case ('rating') {
+                <select class="select" [id]="'f-' + f.key" [formControlName]="f.key">
+                  @for (r of [5, 4, 3, 2, 1]; track r) { <option [ngValue]="r">{{ r }} star{{ r > 1 ? 's' : '' }}</option> }
+                </select>
+              }
+              @case ('checkbox') {
+                <label class="check"><input type="checkbox" [id]="'f-' + f.key" [formControlName]="f.key" /> {{ f.label }}</label>
+              }
+              @case ('image') {
+                <adm-image-input [current]="imageUrl(f)" [wide]="!!f.wide" (fileChange)="setFile(f, $event)" (removed)="markRemoved(f)" />
+              }
+              @case ('tags') {
+                <adm-tag-input [inputId]="'f-' + f.key" [value]="ctrl(f.key).value ?? []" [placeholder]="f.placeholder ?? 'Type and press Enter'" (valueChange)="setList(f, $event)" />
+              }
+              @case ('products') {
+                <adm-product-picker [value]="ctrl(f.key).value ?? []" (valueChange)="setList(f, $event)" />
+              }
+              @case ('multiselect') {
+                <div class="multi" role="group" [attr.aria-label]="f.label">
+                  @for (o of options(f); track o.value) {
+                    <label class="check"><input type="checkbox" [checked]="isChecked(f, o.value)" (change)="toggleMulti(f, o.value, $any($event.target).checked)" /> {{ o.label }}</label>
+                  } @empty { <span class="text-muted text-sm">No options available.</span> }
+                </div>
+              }
+              @case ('readonly') { <div class="ro">{{ render(f) }}</div> }
+              @case ('number') { <input class="input" type="number" [id]="'f-' + f.key" [formControlName]="f.key" [attr.min]="f.min ?? null" [attr.max]="f.max ?? null" [attr.step]="f.step ?? 1" [placeholder]="f.placeholder ?? ''" /> }
+              @case ('date') { <input class="input" type="date" [id]="'f-' + f.key" [formControlName]="f.key" /> }
+              @case ('datetime') { <input class="input" type="datetime-local" [id]="'f-' + f.key" [formControlName]="f.key" /> }
+              @case ('password') { <input class="input" type="password" autocomplete="new-password" [id]="'f-' + f.key" [formControlName]="f.key" [placeholder]="f.placeholder ?? ''" /> }
+              @default {
+                <input class="input" [type]="f.type === 'email' ? 'email' : f.type === 'url' ? 'url' : 'text'" [id]="'f-' + f.key" [formControlName]="f.key" [placeholder]="f.placeholder ?? ''" [attr.maxlength]="f.maxLength ?? null" [class.upper]="f.uppercase" />
+              }
+            }
+            @if (show(f)) { <span class="error-text">{{ errorFor(f) }}</span> } @else if (f.hint && f.type !== 'checkbox') { <span class="hint">{{ f.hint }}</span> }
+          </div>
+        }
+      </div>
+    </form>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="closeForm()">{{ c.readOnly ? 'Close' : 'Cancel' }}</button>
+    @if (!c.readOnly) {
+      <button type="submit" form="crud-form" class="btn btn-primary" [disabled]="saving()">@if (saving()) { <span class="spinner"></span> } {{ editing() ? 'Save changes' : 'Create ' + c.singular.toLowerCase() }}</button>
+    }
+  </div>
+</app-modal>

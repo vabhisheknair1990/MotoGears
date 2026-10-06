@@ -1,0 +1,214 @@
+<!-- HERO -->
+<section class="hero" [style.background-image]="current()?.desktop_image ? 'url(' + current()!.desktop_image + ')' : null">
+  <div class="hero-shade"></div>
+  <div class="container hero-inner">
+    <div class="hero-copy">
+      @if (current(); as b) {
+        @if (b.eyebrow) { <span class="eyebrow light">{{ b.eyebrow }}</span> }
+        <h1>{{ b.title }}</h1>
+        @if (b.subtitle) { <p class="lead">{{ b.subtitle }}</p> }
+        @if (b.cta_url) { <a class="btn btn-outline-light" [routerLink]="b.cta_url.split('?')[0]">{{ b.cta_label ?? 'Shop now' }} <app-icon name="arrow-right" [size]="16" /></a> }
+      } @else {
+        <span class="eyebrow light">GENUINE PARTS • PERFECT FIT</span>
+        <h1>Find the Right Parts for Your Vehicle</h1>
+        <p class="lead">Genuine car and bike parts with guaranteed fitment.</p>
+      }
+      @if (hero().length > 1) {
+        <div class="dots" role="tablist" aria-label="Featured offers">
+          <button class="nav-arrow" (click)="prev()" aria-label="Previous slide"><app-icon name="chevron-left" [size]="16" /></button>
+          @for (b of hero(); track b.id; let i = $index) {
+            <button role="tab" [attr.aria-selected]="i === slide()" [class.on]="i === slide()" (click)="slide.set(i)" [attr.aria-label]="'Show ' + b.title"></button>
+          }
+          <button class="nav-arrow" (click)="next()" aria-label="Next slide"><app-icon name="chevron-right" [size]="16" /></button>
+        </div>
+      }
+    </div>
+    <div class="finder">
+      <h2><app-icon name="search" [size]="22" /> Find parts for your vehicle</h2>
+      <app-vehicle-selector layout="hero" (selected)="onVehicle($event)" />
+      @if (data(); as d) {
+        <div class="stats">
+          <span><strong>{{ d.stats.products }}+</strong> parts</span>
+          <span><strong>{{ d.stats.brands }}</strong> brands</span>
+          <span><strong>{{ d.stats.vehicles }}</strong> vehicle variants</span>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+@if (error() && !data()) {
+  <div class="container section"><div class="alert alert-danger"><app-icon name="alert" /> We couldn't load the store right now. Please refresh the page.</div></div>
+}
+
+<!-- FOR YOUR VEHICLE -->
+@if (data()?.for_your_vehicle; as fyv) {
+  @if (fyv.products.length) {
+    <section class="section fyv">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">Recommended for you</span><h2>Top parts for your {{ fyv.vehicle.name }}</h2></div>
+          <a class="link" routerLink="/vehicles" [queryParams]="{ variant: fyv.vehicle.id }">See all compatible parts →</a>
+        </div>
+        <app-product-grid [products]="fyv.products" [fitsSelected]="true" />
+      </div>
+    </section>
+  }
+}
+
+<!-- CATEGORIES -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div><span class="eyebrow">Shop by category</span><h2>Everything your vehicle needs</h2></div>
+      <a class="link" routerLink="/shop">Browse all →</a>
+    </div>
+    @if (loading()) {
+      <div class="cat-grid">@for (i of [1,2,3,4,5,6,7,8]; track i) { <div class="skeleton" style="aspect-ratio:3/2"></div> }</div>
+    } @else {
+      <div class="cat-grid">
+        @for (c of data()?.featured_categories ?? []; track c.id) { <app-category-card [category]="c" /> }
+      </div>
+    }
+  </div>
+</section>
+
+<!-- PROMOS -->
+@if (data()?.promo_banners?.length) {
+  <section class="container promos">
+    @for (b of data()!.promo_banners; track b.id) {
+      <a class="promo" [routerLink]="(b.cta_url ?? '/shop').split('?')[0]" [style.background-image]="'url(' + b.desktop_image + ')'">
+        <span class="badge badge-accent">{{ b.eyebrow }}</span>
+        <strong>{{ b.title }}</strong>
+        <span>{{ b.subtitle }}</span>
+        <span class="cta">{{ b.cta_label }} <app-icon name="arrow-right" [size]="14" /></span>
+      </a>
+    }
+  </section>
+}
+
+<!-- FEATURED -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div><span class="eyebrow">Hand-picked</span><h2>Featured products</h2></div>
+      <a class="link" routerLink="/shop" [queryParams]="{ featured: 1 }">View all →</a>
+    </div>
+    <app-product-grid [products]="data()?.featured_products ?? []" [loading]="loading()" />
+  </div>
+</section>
+
+<!-- DEALS -->
+@if (data()?.deals?.length) {
+  <section class="section deals">
+    <div class="container">
+      <div class="section-head">
+        <div><span class="eyebrow light">Limited period</span><h2>Deals of the week</h2></div>
+        <a class="link light" routerLink="/shop" [queryParams]="{ sort: 'discount', discount: 20 }">All offers →</a>
+      </div>
+      <app-product-grid [products]="data()!.deals" />
+    </div>
+  </section>
+}
+
+<!-- BEST SELLERS -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div><span class="eyebrow">Most popular</span><h2>Best sellers</h2></div>
+      <a class="link" routerLink="/shop" [queryParams]="{ sort: 'popular' }">View all →</a>
+    </div>
+    <app-product-grid [products]="data()?.best_sellers ?? []" [loading]="loading()" />
+  </div>
+</section>
+
+<!-- OFFERS -->
+@if (data()?.offers?.length) {
+  <section class="section offers-sec">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Save more</span><h2>Coupons & offers</h2></div></div>
+      <div class="offers">
+        @for (o of data()!.offers; track o.id) {
+          <div class="offer">
+            <div class="offer-val">
+              @switch (o.type) {
+                @case ('percentage') { {{ o.value }}% OFF }
+                @case ('fixed') { {{ o.value | inr: 'whole' }} OFF }
+                @default { FREE SHIPPING }
+              }
+            </div>
+            <p>{{ o.description }}</p>
+            <button type="button" class="code" (click)="copyCode(o.code)" [attr.aria-label]="'Copy code ' + o.code"><span class="mono">{{ o.code }}</span><app-icon name="copy" [size]="14" /></button>
+            @if (o.expires_at) { <small class="text-muted">Valid till {{ o.expires_at | appDate }}</small> }
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+}
+
+<!-- BRANDS -->
+<section class="section brands-sec">
+  <div class="container">
+    <div class="section-head">
+      <div><span class="eyebrow">Trusted brands</span><h2>Shop by brand</h2></div>
+      <a class="link" routerLink="/brands">All brands →</a>
+    </div>
+    <div class="brand-grid">
+      @for (b of data()?.brands ?? []; track b.id) { <app-brand-card [brand]="b" /> }
+    </div>
+  </div>
+</section>
+
+<!-- NEW ARRIVALS -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div><span class="eyebrow">Just landed</span><h2>New arrivals</h2></div>
+      <a class="link" routerLink="/shop" [queryParams]="{ sort: 'newest' }">View all →</a>
+    </div>
+    <app-product-grid [products]="data()?.new_arrivals ?? []" [loading]="loading()" />
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+@if (data()?.testimonials?.length) {
+  <section class="section testimonials">
+    <div class="container">
+      <div class="section-head"><div><span class="eyebrow">Riders & drivers love us</span><h2>What customers say</h2></div></div>
+      <div class="t-grid">
+        @for (t of data()!.testimonials; track t.id) {
+          <figure class="t-card">
+            <app-rating [value]="t.rating" [size]="15" />
+            <blockquote>“{{ t.content }}”</blockquote>
+            <figcaption><strong>{{ t.name }}</strong><span>{{ t.vehicle }} · {{ t.location }}</span></figcaption>
+          </figure>
+        }
+      </div>
+    </div>
+  </section>
+}
+
+<!-- BLOG -->
+@if (data()?.blog_posts?.length) {
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <div><span class="eyebrow">From the garage</span><h2>Guides & maintenance tips</h2></div>
+        <a class="link" routerLink="/blog">Read the blog →</a>
+      </div>
+      <div class="blog-grid">
+        @for (p of data()!.blog_posts; track p.id) {
+          <a class="post" [routerLink]="['/blog', p.slug]">
+            <img [src]="p.cover_image" [alt]="p.title" loading="lazy" />
+            <div class="post-body">
+              <span class="text-xs text-muted">{{ p.category?.name }} · {{ p.reading_minutes }} min read</span>
+              <h3>{{ p.title }}</h3>
+              <p class="text-muted text-sm clamp-2">{{ p.excerpt }}</p>
+            </div>
+          </a>
+        }
+      </div>
+    </div>
+  </section>
+}

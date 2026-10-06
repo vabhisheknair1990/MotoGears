@@ -1,0 +1,20 @@
+.rv { display: grid; gap: 24px; }
+@media (min-width: 900px) { .rv { grid-template-columns: 300px 1fr; align-items: start; } }
+.summary { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.avg { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.avg strong { font-family: var(--font-display); font-size: 44px; line-height: 1; }
+.dist { display: flex; flex-direction: column; gap: 4px; }
+.dist button { display: grid; grid-template-columns: 34px 1fr 30px; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 3px 4px; border-radius: 4px; font-size: 13px; }
+.dist button:hover, .dist button.on { background: var(--surface-2); }
+.bar { height: 8px; background: var(--line-2); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.n { color: var(--muted); text-align: right; }
+.write { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.write h3 { margin: 0; }
+.sort-row { margin-bottom: 8px; }
+.clear { border: 0; background: none; font-size: 13px; }
+.review { padding: 16px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.review h4 { margin: 0; font-size: 15px; }
+.review p { margin: 0; color: var(--ink-2); }
+.imgs { display: flex; gap: 8px; }
+.imgs img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-sm); }

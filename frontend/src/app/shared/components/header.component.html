@@ -1,0 +1,146 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="topbar">
+  <div class="container row between">
+    <div class="row gap-16 tb-left">
+      <span class="row gap-4"><app-icon name="truck" [size]="15" /> Free shipping over ₹2,999</span>
+      <span class="row gap-4 hide-mobile"><app-icon name="shield" [size]="15" /> 100% genuine parts</span>
+    </div>
+    <div class="row gap-16 tb-right">
+      <a routerLink="/contact" class="row gap-4 hide-mobile"><app-icon name="phone" [size]="15" /> Support</a>
+      <a routerLink="/account/orders" class="row gap-4"><app-icon name="package" [size]="15" /> Track order</a>
+      <a routerLink="/shop" [queryParams]="{ sort: 'discount', discount: 20 }" class="row gap-4 offers"><app-icon name="tag" [size]="15" /> Offers</a>
+    </div>
+  </div>
+</div>
+
+<header class="main">
+  <div class="container bar">
+    <button class="icon-btn hide-desktop" (click)="ui.mobileMenuOpen.set(true)" aria-label="Open menu"><app-icon name="menu" /></button>
+    <a routerLink="/" class="logo" aria-label="MotoGears home">
+      <span class="mark">M</span><span class="word">Moto<b>Gears</b></span>
+    </a>
+
+    <div class="search hide-mobile"><app-search-bar /></div>
+
+    <button type="button" class="vehicle-btn" (click)="ui.vehicleModalOpen.set(true)" [attr.aria-label]="vehicle.label() ? 'Change vehicle: ' + vehicle.fullLabel() : 'Select your vehicle'">
+      <app-icon [name]="vehicle.selected()?.vehicleType === 'motorcycle' ? 'bike' : 'car'" [size]="22" />
+      <span class="vb-text">
+        <small>{{ vehicle.label() ? 'My vehicle' : 'Shop by vehicle' }}</small>
+        <strong class="truncate">{{ vehicle.label() ?? 'Select vehicle' }}</strong>
+      </span>
+      <app-icon name="chevron-down" [size]="16" class="hide-mobile" />
+    </button>
+
+    <nav class="actions" aria-label="Account">
+      <div class="acct">
+        @if (auth.isLoggedIn()) {
+          <button class="icon-btn" (click)="accountOpen.set(!accountOpen())" [attr.aria-expanded]="accountOpen()" aria-label="Account menu">
+            <span class="avatar">{{ auth.firstName().charAt(0) }}</span>
+          </button>
+          @if (accountOpen()) {
+            <div class="menu" role="menu">
+              <div class="menu-head">Hi, {{ auth.firstName() }}</div>
+              @if (auth.isStaff()) { <a routerLink="/admin" role="menuitem"><app-icon name="gauge" [size]="16" /> Admin panel</a> }
+              <a routerLink="/account" role="menuitem"><app-icon name="user" [size]="16" /> My account</a>
+              <a routerLink="/account/orders" role="menuitem"><app-icon name="package" [size]="16" /> My orders</a>
+              <a routerLink="/account/vehicles" role="menuitem"><app-icon name="car" [size]="16" /> My garage</a>
+              <button type="button" role="menuitem" (click)="logout()"><app-icon name="logout" [size]="16" /> Log out</button>
+            </div>
+          }
+        } @else {
+          <a routerLink="/login" class="icon-btn" aria-label="Log in"><app-icon name="user" /></a>
+        }
+      </div>
+      <a routerLink="/account/wishlist" class="icon-btn hide-mobile" aria-label="Wishlist">
+        <app-icon name="heart" />
+        @if (wishlist.count()) { <span class="count-badge">{{ wishlist.count() }}</span> }
+      </a>
+      <button class="icon-btn" (click)="ui.cartDrawerOpen.set(true)" aria-label="Open cart">
+        <app-icon name="cart" />
+        @if (cart.count()) { <span class="count-badge">{{ cart.count() }}</span> }
+      </button>
+    </nav>
+  </div>
+  <div class="container hide-desktop mobile-search"><app-search-bar /></div>
+
+  <nav class="nav hide-mobile" aria-label="Main">
+    <div class="container">
+      <ul class="list-reset navlist">
+        <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
+        <li><a routerLink="/shop" routerLinkActive="active">Shop</a></li>
+        <li class="has-mega" (mouseenter)="openMenu.set('car')" (mouseleave)="openMenu.set(null)">
+          <a routerLink="/category/car-parts" routerLinkActive="active">Car Parts <app-icon name="chevron-down" [size]="14" /></a>
+          @if (openMenu() === 'car' && carParts().length) {
+            <div class="mega"><div class="mega-grid">
+              @for (c of carParts(); track c.id) { <a [routerLink]="['/category', c.slug]"><img [src]="c.image" alt="" loading="lazy" /><span>{{ c.name }}</span></a> }
+            </div></div>
+          }
+        </li>
+        <li class="has-mega" (mouseenter)="openMenu.set('bike')" (mouseleave)="openMenu.set(null)">
+          <a routerLink="/category/motorcycle-parts" routerLinkActive="active">Bike Parts <app-icon name="chevron-down" [size]="14" /></a>
+          @if (openMenu() === 'bike' && bikeParts().length) {
+            <div class="mega"><div class="mega-grid">
+              @for (c of bikeParts(); track c.id) { <a [routerLink]="['/category', c.slug]"><img [src]="c.image" alt="" loading="lazy" /><span>{{ c.name }}</span></a> }
+            </div></div>
+          }
+        </li>
+        <li class="has-mega" (mouseenter)="openMenu.set('acc')" (mouseleave)="openMenu.set(null)">
+          <a routerLink="/category/accessories" routerLinkActive="active">Accessories <app-icon name="chevron-down" [size]="14" /></a>
+          @if (openMenu() === 'acc' && accessories().length) {
+            <div class="mega"><div class="mega-grid">
+              @for (c of accessories(); track c.id) { <a [routerLink]="['/category', c.slug]"><img [src]="c.image" alt="" loading="lazy" /><span>{{ c.name }}</span></a> }
+            </div></div>
+          }
+        </li>
+        <li><a routerLink="/brands" routerLinkActive="active">Brands</a></li>
+        <li><a routerLink="/shop" [queryParams]="{ sort: 'discount', discount: 20 }">Offers</a></li>
+        <li><a routerLink="/shop" [queryParams]="{ sort: 'newest' }">New Arrivals</a></li>
+        <li><a routerLink="/contact" routerLinkActive="active">Contact</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+@if (ui.mobileMenuOpen()) {
+  <div class="backdrop" (click)="ui.mobileMenuOpen.set(false)"></div>
+  <aside class="mobile-menu" role="dialog" aria-modal="true" aria-label="Menu" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (keydown.escape)="ui.mobileMenuOpen.set(false)">
+    <div class="row between mm-head">
+      <a routerLink="/" class="logo dark"><span class="mark">M</span><span class="word">Moto<b>Gears</b></span></a>
+      <button class="icon-btn" (click)="ui.mobileMenuOpen.set(false)" aria-label="Close menu"><app-icon name="x" /></button>
+    </div>
+    <a routerLink="/">Home</a>
+    <a routerLink="/shop">Shop all</a>
+    <details open><summary>Car Parts</summary>@for (c of carParts(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details>
+    <details><summary>Bike Parts</summary>@for (c of bikeParts(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details>
+    <details><summary>Accessories &amp; Oils</summary>@for (c of accessories(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details>
+    <a routerLink="/brands">Brands</a>
+    <a routerLink="/shop" [queryParams]="{ sort: 'discount', discount: 20 }">Offers</a>
+    <a routerLink="/shop" [queryParams]="{ sort: 'newest' }">New arrivals</a>
+    <a routerLink="/vehicles">Shop by vehicle</a>
+    <a routerLink="/blog">Blog</a>
+    <a routerLink="/faq">FAQ</a>
+    <a routerLink="/contact">Contact</a>
+    <hr />
+    @if (auth.isLoggedIn()) {
+      <a routerLink="/account">My account</a>
+      <a routerLink="/account/wishlist">Wishlist ({{ wishlist.count() }})</a>
+      <button type="button" class="mm-btn" (click)="logout()">Log out</button>
+    } @else {
+      <a routerLink="/login" class="btn btn-primary">Log in</a>
+      <a routerLink="/register" class="btn mt-8">Create account</a>
+    }
+  </aside>
+}
+
+<app-modal [open]="ui.vehicleModalOpen()" title="Select your vehicle" size="lg" (close)="ui.vehicleModalOpen.set(false)">
+  <p class="text-muted mt-0">We'll show parts that fit your vehicle and flag anything that doesn't.</p>
+  @if (ui.vehicleModalOpen()) {
+    <app-vehicle-selector layout="stacked" buttonLabel="Show compatible parts" (selected)="onVehicleSelected($event)" />
+  }
+  @if (vehicle.selected()) {
+    <div class="row between current-v">
+      <span>Current: <strong>{{ vehicle.fullLabel() }}</strong></span>
+      <button type="button" class="btn btn-sm btn-ghost" (click)="vehicle.clear(); ui.vehicleModalOpen.set(false)">Clear vehicle</button>
+    </div>
+  }
+</app-modal>

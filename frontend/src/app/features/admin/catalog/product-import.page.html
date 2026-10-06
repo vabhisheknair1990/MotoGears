@@ -1,0 +1,298 @@
+<adm-page-header title="Import products" subtitle="Add or update many products at once from an Excel file. Everything runs in the background." back="/admin/products" backLabel="Products" />
+
+<div class="layout">
+  <div class="main">
+    <!-- 1 · Template -->
+    <section class="card">
+      <div class="card-head"><h2><span class="num">1</span> Get the template</h2></div>
+      <div class="card-body">
+        <p class="text-muted mt-0">Excel template with dropdowns for your categories, brands and vehicles, plus an Instructions sheet. Hover over any header in Excel for help.</p>
+        <div class="tpl-grid">
+          <div class="tpl">
+            <app-icon name="file" [size]="22" />
+            <div class="grow">
+              <strong>Blank template</strong>
+              <p class="text-sm text-muted mb-0">For adding new products. Includes one sample row (ignored on import).</p>
+            </div>
+            <button type="button" class="btn" (click)="download('blank')" [disabled]="downloading() !== null">
+              @if (downloading() === 'blank') { <span class="spinner"></span> } @else { <app-icon name="download" [size]="16" /> } Download
+            </button>
+          </div>
+          <div class="tpl">
+            <app-icon name="layers" [size]="22" />
+            <div class="grow">
+              <strong>Export my products</strong>
+              <p class="text-sm text-muted mb-0">The same template filled with your current products — edit prices, stock or details and upload it back.</p>
+              <div class="filters">
+                <select class="select input-sm" aria-label="Export category" (change)="setFilter('category', $any($event.target).value)">
+                  <option value="">All categories</option>
+                  @for (c of categories(); track c.value) { <option [value]="c.value">{{ c.label }}</option> }
+                </select>
+                <select class="select input-sm" aria-label="Export brand" (change)="setFilter('brand', $any($event.target).value)">
+                  <option value="">All brands</option>
+                  @for (b of lookups()?.brands ?? []; track b.id) { <option [value]="b.id">{{ b.name }}</option> }
+                </select>
+              </div>
+            </div>
+            <button type="button" class="btn" (click)="download('products')" [disabled]="downloading() !== null">
+              @if (downloading() === 'products') { <span class="spinner"></span> } @else { <app-icon name="download" [size]="16" /> } Export
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 · Upload -->
+    <section class="card">
+      <div class="card-head"><h2><span class="num">2</span> Upload your file</h2></div>
+      <div class="card-body stack">
+        <label class="drop" [class.over]="dragging()" [class.has]="file()" (dragover)="onDragOver($event)" (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
+          <input #picker type="file" class="sr-only" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" (change)="onPick(picker)" />
+          @if (file(); as f) {
+            <app-icon name="file" [size]="28" />
+            <span class="fname">{{ f.name }}</span>
+            <span class="text-sm text-muted">{{ size(f.size) }} · click to choose another file</span>
+          } @else {
+            <app-icon name="upload" [size]="28" />
+            <span class="fw-600">Drop your Excel file here, or click to choose</span>
+            <span class="text-sm text-muted">.xlsx (recommended), .xls or .csv · up to {{ maxMb }} MB · up to 5,000 products</span>
+          }
+        </label>
+        @if (fileError()) { <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><span>{{ fileError() }}</span></div> }
+
+        <fieldset class="modes">
+          <legend class="label">What should the import do?</legend>
+          @for (m of modes; track m.value) {
+            <label class="mode" [class.on]="mode() === m.value">
+              <input type="radio" name="mode" [value]="m.value" [checked]="mode() === m.value" (change)="mode.set(m.value)" />
+              <span><span class="fw-600">{{ m.label }}</span><span class="text-sm text-muted d-block">{{ m.hint }}</span></span>
+            </label>
+          }
+        </fieldset>
+
+        <label class="check">
+          <input type="checkbox" [checked]="autoStart()" (change)="autoStart.set($any($event.target).checked)" />
+          <span>Start importing automatically if the check finds no problems</span>
+        </label>
+
+        <div class="row-end">
+          @if (file()) { <button type="button" class="btn btn-ghost" (click)="clearFile()">Clear</button> }
+          <button type="button" class="btn btn-primary" (click)="upload()" [disabled]="!file() || uploading()">
+            @if (uploading()) { <span class="spinner"></span> Uploading… } @else { <app-icon name="upload" [size]="16" /> Upload and check }
+          </button>
+        </div>
+        <p class="text-xs text-muted mb-0">Your file is checked first and nothing is saved until you confirm. You can leave this page at any time — you'll get a notification when it's done.</p>
+      </div>
+    </section>
+
+    <!-- 3 · Progress & result -->
+    @if (job(); as j) {
+      <section class="card job" aria-live="polite">
+        <div class="card-head">
+          <h2 class="min0"><span class="num">3</span> <span class="truncate">{{ j.original_name }}</span></h2>
+          <div class="head-actions">
+            <span class="badge" [class]="'badge badge-' + tone(j.status)">{{ j.status_label }}</span>
+            <button type="button" class="icon-btn sm" (click)="close()" aria-label="Close"><app-icon name="x" [size]="16" /></button>
+          </div>
+        </div>
+        <div class="card-body stack">
+          <ol class="stepper" aria-label="Import steps">
+            @for (s of steps; track s.key; let i = $index) {
+              <li [class]="stepState(i)" [attr.aria-current]="stepState(i) === 'current' ? 'step' : null">
+                <span class="dot">@if (stepState(i) === 'done') { <app-icon name="check" [size]="12" /> } @else if (stepState(i) === 'failed') { <app-icon name="x" [size]="12" /> } @else { {{ i + 1 }} }</span>
+                <span class="lbl">{{ s.label }}</span>
+              </li>
+            }
+          </ol>
+
+          <div class="meta text-sm text-muted">
+            {{ j.mode_label }} · uploaded {{ j.created_at | timeAgo }}@if (j.user) { by {{ j.user.name }} }
+          </div>
+
+          @if (isActive()) {
+            <div class="progress-wrap">
+              <div class="between text-sm">
+                <span class="fw-600">
+                  <span class="spinner"></span>
+                  @switch (j.status) {
+                    @case ('pending') { Waiting for the background worker… }
+                    @case ('validating') { Checking your file — nothing is being saved }
+                    @case ('queued') { Starting the import… }
+                    @default { @if (j.cancel_requested) { Stopping after the current product… } @else { Importing products… } }
+                  }
+                </span>
+                <span class="mono">@if (j.total_rows) { {{ j.processed_rows }} / {{ j.total_rows }} · } {{ j.progress }}%</span>
+              </div>
+              <div class="bar" role="progressbar" [attr.aria-valuenow]="j.progress" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="j.status_label">
+                <span [style.width.%]="j.progress" [class.indeterminate]="!j.total_rows"></span>
+              </div>
+              @if (j.status === 'importing') {
+                <div class="live text-sm"><span>{{ j.created_count }} added</span><span>{{ j.updated_count }} updated</span>@if (j.skipped_count) { <span>{{ j.skipped_count }} skipped</span> }@if (j.failed_count) { <span class="text-danger">{{ j.failed_count }} with problems</span> }</div>
+              }
+              @if (j.waiting_for_worker) {
+                <div class="alert alert-warning"><app-icon name="clock" [size]="18" /><span>This is taking longer than usual to start. Imports are processed by the background worker — with Docker it starts automatically; on a manual setup run <span class="kbd">php artisan queue:work</span>.</span></div>
+              }
+            </div>
+          }
+
+          @if (j.status === 'validated' && j.summary; as s) {
+            <div class="tiles">
+              <div class="tile ok"><strong>{{ s.will_create }}</strong><span>new products</span></div>
+              <div class="tile ok"><strong>{{ s.will_update }}</strong><span>to update</span></div>
+              @if (s.will_skip) { <div class="tile"><strong>{{ s.will_skip }}</strong><span>skipped</span></div> }
+              <div class="tile" [class.bad]="s.invalid"><strong>{{ s.invalid }}</strong><span>with problems</span></div>
+            </div>
+            <p class="text-sm text-muted mb-0">
+              File contents: {{ s.rows.products }} product row(s)@if (s.rows.compatibility) {, {{ s.rows.compatibility }} compatibility}@if (s.rows.variants) {, {{ s.rows.variants }} variant}@if (s.rows.faqs) {, {{ s.rows.faqs }} FAQ} row(s)@if (s.images) {, {{ s.images }} image link(s) to download}.
+            </p>
+            @if (!j.can_start) {
+              <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><span>Nothing can be imported yet. Fix the problems below in your file and upload it again.</span></div>
+            } @else if (s.invalid) {
+              <div class="alert alert-warning"><app-icon name="alert" [size]="18" /><span>{{ s.invalid }} product(s) have problems and will be <strong>skipped</strong>. You can import the rest now and upload the fixed rows later, or fix the file first.</span></div>
+            } @else {
+              <div class="alert alert-success"><app-icon name="check-circle" [size]="18" /><span>Everything looks good. Nothing has been saved yet — start the import when you're ready.</span></div>
+            }
+            <div class="row-end">
+              @if (j.error_count || j.warning_count) { <button type="button" class="btn" (click)="report(j)"><app-icon name="download" [size]="16" /> Problem list</button> }
+              <button type="button" class="btn btn-ghost" (click)="cancel()" [disabled]="busy()">Discard</button>
+              <button type="button" class="btn btn-primary" (click)="start()" [disabled]="!j.can_start || busy()">
+                @if (busy()) { <span class="spinner"></span> } @else { <app-icon name="upload" [size]="16" /> } Import {{ toImport() }} product{{ toImport() === 1 ? '' : 's' }}
+              </button>
+            </div>
+          }
+
+          @if (isActive() && j.can_cancel) {
+            <div class="row-end">
+              <button type="button" class="btn btn-ghost" (click)="cancel()" [disabled]="busy() || j.cancel_requested">{{ j.status === 'importing' ? 'Stop import' : 'Cancel' }}</button>
+            </div>
+          }
+
+          @if (j.status === 'completed' || j.status === 'completed_with_errors' || (j.status === 'cancelled' && j.phase === 'import')) {
+            <div class="tiles">
+              <div class="tile ok"><strong>{{ j.created_count }}</strong><span>added</span></div>
+              <div class="tile ok"><strong>{{ j.updated_count }}</strong><span>updated</span></div>
+              @if (j.skipped_count) { <div class="tile"><strong>{{ j.skipped_count }}</strong><span>skipped</span></div> }
+              <div class="tile" [class.bad]="j.failed_count"><strong>{{ j.failed_count }}</strong><span>not imported</span></div>
+            </div>
+            @if (j.status === 'completed') {
+              <div class="alert alert-success"><app-icon name="check-circle" [size]="18" /><span>Import finished{{ j.finished_at ? ' ' + (j.finished_at | timeAgo) : '' }}.@if (j.warning_count) { There are {{ j.warning_count }} note(s) below worth a look (for example images that could not be downloaded). }</span></div>
+            } @else if (j.status === 'completed_with_errors') {
+              <div class="alert alert-warning"><app-icon name="alert" [size]="18" /><span>{{ j.failed_count }} product(s) were not imported. Download the problem list, fix those rows and upload them again — the rest is already saved.</span></div>
+            } @else if (j.message) {
+              <div class="alert alert-info"><app-icon name="info" [size]="18" /><span>{{ j.message }}</span></div>
+            }
+            <div class="row-end">
+              @if (j.error_count || j.warning_count) { <button type="button" class="btn" (click)="report(j)"><app-icon name="download" [size]="16" /> Problem list</button> }
+              <a routerLink="/admin/products" [queryParams]="{ sort: 'newest' }" class="btn">View products</a>
+              <button type="button" class="btn btn-primary" (click)="close()">Import another file</button>
+            </div>
+          }
+
+          @if (j.status === 'failed' || (j.status === 'cancelled' && j.phase === 'check')) {
+            <div class="alert" [class.alert-danger]="j.status === 'failed'" [class.alert-info]="j.status === 'cancelled'">
+              <app-icon [name]="j.status === 'failed' ? 'alert' : 'info'" [size]="18" /><span>{{ j.message || (j.status === 'failed' ? 'The import failed.' : 'Cancelled.') }}</span>
+            </div>
+            <div class="row-end"><button type="button" class="btn btn-primary" (click)="close()">Upload a file</button></div>
+          }
+
+          @if (j.error_count || j.warning_count) {
+            <div class="issues">
+              <div class="tabs" role="tablist">
+                <button type="button" role="tab" [class.active]="issueLevel() === 'error'" [attr.aria-selected]="issueLevel() === 'error'" (click)="setLevel('error')">Problems <span class="count">{{ j.error_count }}</span></button>
+                <button type="button" role="tab" [class.active]="issueLevel() === 'warning'" [attr.aria-selected]="issueLevel() === 'warning'" (click)="setLevel('warning')">Notes <span class="count">{{ j.warning_count }}</span></button>
+              </div>
+              @if (issues().length) {
+                <div class="table-wrap flat">
+                  <table class="table">
+                    <thead><tr><th>Where</th><th>SKU</th><th>Column</th><th>What to fix</th></tr></thead>
+                    <tbody>
+                      @for (i of issues(); track $index) {
+                        <tr>
+                          <td class="nowrap text-sm">{{ issueLocation(i) }}</td>
+                          <td class="mono text-sm nowrap">{{ i.sku || '—' }}</td>
+                          <td class="text-sm nowrap">{{ i.column || '—' }}</td>
+                          <td class="text-sm"><app-icon [name]="i.level === 'error' ? 'alert' : 'info'" [size]="14" [class]="i.level" /> {{ i.message }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                @if (j.issues_total > issues().length || j.issues_truncated) {
+                  <p class="text-sm text-muted mb-0">Showing the first {{ issues().length }}. <button type="button" class="linkish" (click)="report(j)">Download the full list</button> to see everything.</p>
+                }
+              } @else {
+                <p class="text-sm text-muted">No {{ issueLevel() === 'error' ? 'problems' : 'notes' }}.</p>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- History -->
+    <section class="card">
+      <div class="card-head"><h2>Recent imports</h2><button type="button" class="icon-btn sm" (click)="loadHistory(historyMeta()?.current_page ?? 1)" aria-label="Refresh"><app-icon name="refresh" [size]="16" /></button></div>
+      <div class="table-wrap flat" [class.busy]="historyLoading()">
+        <table class="table">
+          <thead><tr><th>File</th><th>Status</th><th class="hide-mobile">Result</th><th class="hide-mobile">When</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            @for (h of history(); track h.id) {
+              <tr [class.sel]="job()?.id === h.id">
+                <td>
+                  <button type="button" class="linkish fw-600 truncate fname-btn" (click)="open(h.id)">{{ h.original_name }}</button>
+                  <div class="text-xs text-muted">{{ h.mode_label }}@if (h.user) { · {{ h.user.name }} }</div>
+                </td>
+                <td><span class="badge" [class]="'badge badge-' + tone(h.status)">{{ h.status_label }}</span>@if (h.is_active) { <div class="text-xs text-muted">{{ h.progress }}%</div> }</td>
+                <td class="hide-mobile text-sm">{{ result(h) }}</td>
+                <td class="hide-mobile text-sm nowrap" [title]="h.created_at | appDate">{{ h.created_at | timeAgo }}</td>
+                <td class="act">
+                  <button type="button" class="icon-btn sm" (click)="open(h.id)" title="View" [attr.aria-label]="'View ' + h.original_name"><app-icon name="eye" [size]="16" /></button>
+                  @if (h.has_file) { <button type="button" class="icon-btn sm" (click)="original(h)" title="Download uploaded file" [attr.aria-label]="'Download ' + h.original_name"><app-icon name="download" [size]="16" /></button> }
+                  @if (!h.is_active) { <button type="button" class="icon-btn sm danger" (click)="remove(h)" title="Remove from history" [attr.aria-label]="'Remove ' + h.original_name"><app-icon name="trash" [size]="16" /></button> }
+                </td>
+              </tr>
+            } @empty {
+              @if (!historyLoading()) { <tr><td colspan="5" class="text-muted text-sm">No imports yet — download the template to get started.</td></tr> }
+              @else { @for (k of [1, 2, 3]; track k) { <tr><td colspan="5"><div class="skeleton" style="height:20px"></div></td></tr> } }
+            }
+          </tbody>
+        </table>
+      </div>
+      @if ((historyMeta()?.last_page ?? 1) > 1) { <div class="pg"><app-pagination [meta]="historyMeta()" (pageChange)="loadHistory($event)" /></div> }
+    </section>
+  </div>
+
+  <!-- Guide -->
+  <aside class="side">
+    <section class="card">
+      <div class="card-head"><h2>Good to know</h2></div>
+      <ul class="tips card-body">
+        <li><strong>SKU is the key.</strong> An existing SKU updates that product; a new SKU creates one. Never change a product's SKU in the file.</li>
+        <li><strong>Empty cells keep the current value</strong> when updating. Type <span class="kbd">CLEAR</span> to erase an optional field.</li>
+        <li><strong>Use the dropdowns</strong> for category, brand and vehicles — every valid value is on the <em>Lists</em> sheet.</li>
+        <li><strong>Compatibility, Variants and FAQs</strong> link to products by SKU. If a SKU appears there, that product's list is replaced by the file.</li>
+        <li><strong>Stock on hand</strong> sets the stock count; every change is logged in Inventory.</li>
+        <li><strong>Images</strong>: paste public links separated by <span class="kbd">|</span>. They download in the background; the first is the main photo.</li>
+        <li>Each product is saved completely or not at all — one bad row never breaks the others.</li>
+      </ul>
+    </section>
+    @if (columnSheets().length) {
+      <section class="card">
+        <div class="card-head"><h2>Column guide</h2></div>
+        <div class="card-body guide">
+          @for (g of columnSheets(); track g.sheet) {
+            <details>
+              <summary>{{ g.sheet }} <span class="text-xs text-muted">{{ g.cols.length }} columns</span></summary>
+              <dl>
+                @for (c of g.cols; track c.key) {
+                  <dt>{{ c.header }}@if (c.required) { <span class="req" title="Required for new products">required</span> }@if (c.dropdown) { <span class="dd">dropdown</span> }</dt>
+                  @if (c.help) { <dd>{{ c.help }}</dd> }
+                }
+              </dl>
+            </details>
+          }
+        </div>
+      </section>
+    }
+  </aside>
+</div>

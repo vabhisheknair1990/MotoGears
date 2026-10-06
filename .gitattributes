@@ -1,0 +1,7 @@
+# Normalise line endings; shell scripts must stay LF for Docker.
+* text=auto
+*.sh text eol=lf
+*.xlsx binary
+*.png binary
+*.jpg binary
+*.ico binary

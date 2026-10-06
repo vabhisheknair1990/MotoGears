@@ -1,0 +1,114 @@
+<adm-page-header title="Reports" subtitle="Revenue counts paid, non-cancelled orders. All amounts in INR." />
+
+<div class="bar">
+  <nav class="tabs" role="tablist" aria-label="Report type">
+    @for (t of [{ v: 'sales', l: 'Sales' }, { v: 'products', l: 'Products' }, { v: 'customers', l: 'Customers' }, { v: 'inventory', l: 'Inventory' }]; track t.v) {
+      <button type="button" role="tab" [class.active]="tab() === t.v" [attr.aria-selected]="tab() === t.v" (click)="tab.set($any(t.v))">{{ t.l }}</button>
+    }
+  </nav>
+  <div class="ctl">
+    <select class="select input-sm" aria-label="Period" [value]="period()" (change)="period.set($any($event.target).value)">
+      @for (p of periods; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+    </select>
+    @if (period() === 'custom') {
+      <input class="input input-sm" type="date" aria-label="From" [value]="from()" (change)="from.set($any($event.target).value)" />
+      <input class="input input-sm" type="date" aria-label="To" [value]="to()" (change)="to.set($any($event.target).value)" />
+      <button type="button" class="btn btn-sm btn-dark" (click)="applyCustom()" [disabled]="!from() || !to()">Apply</button>
+    }
+    <button type="button" class="btn btn-sm" (click)="exportCsv()"><app-icon name="download" [size]="14" /> CSV</button>
+  </div>
+</div>
+@if (meta(); as m) { <p class="range">{{ m.from }} → {{ m.to }}</p> }
+@if (error()) { <div class="alert alert-danger"><app-icon name="alert" [size]="18" /> {{ error() }}</div> }
+
+<div [class.loading]="loading()">
+  @switch (tab()) {
+    @case ('sales') {
+      @if (sales(); as s) {
+        <div class="kpis">
+          <adm-stat label="Revenue" [value]="compact(s.summary.revenue)" icon="rupee" [delta]="s.summary.growth_percent" [hint]="'prev. ' + compact(s.summary.previous_period_revenue)" />
+          <adm-stat label="Orders" [value]="s.summary.orders" icon="package" [hint]="s.summary.items_sold + ' items sold'" />
+          <adm-stat label="Avg. order value" [value]="inr(s.summary.average_order_value, true)" icon="wallet" />
+          <adm-stat label="Discounts given" [value]="compact(s.summary.discounts)" icon="percent" [hint]="'Gross ' + compact(s.summary.gross_sales)" />
+          <adm-stat label="GST collected" [value]="compact(s.summary.tax)" icon="file" [hint]="'Shipping ' + compact(s.summary.shipping)" />
+          <adm-stat label="Cancelled" [value]="s.summary.cancelled_orders" icon="x" [hint]="compact(s.summary.cancelled_value) + ' lost'" />
+        </div>
+        <section class="card">
+          <div class="card-head"><h2>Revenue over time</h2></div>
+          <div class="card-body"><adm-area-chart [data]="salesSeries()" [height]="280" ariaLabel="Revenue over time" [format]="inr" [axisFormat]="compact" /></div>
+        </section>
+        <div class="grid-2">
+          <section class="card"><div class="card-head"><h2>By payment method</h2></div><div class="card-body"><adm-bar-list [items]="paymentBars()" ariaLabel="Revenue by payment method" /></div></section>
+          <section class="card"><div class="card-head"><h2>Orders by status</h2></div><div class="card-body"><adm-bar-list [items]="statusBars()" color="#334155" ariaLabel="Orders by status" /></div></section>
+        </div>
+        <section class="card">
+          <div class="card-head"><h2>Coupon usage</h2></div>
+          <div class="table-wrap flat"><table class="table">
+            <thead><tr><th>Code</th><th class="num">Uses</th><th class="num">Discount given</th></tr></thead>
+            <tbody>@for (c of s.top_coupons; track c.code) { <tr><td class="mono fw-600">{{ c.code }}</td><td class="num">{{ c.uses }}</td><td class="num">{{ c.discount | inr }}</td></tr> } @empty { <tr><td colspan="3" class="text-muted">No coupons used in this period.</td></tr> }</tbody>
+          </table></div>
+        </section>
+      }
+    }
+    @case ('products') {
+      @if (products(); as p) {
+        <div class="grid-2">
+          <section class="card"><div class="card-head"><h2>Revenue by category</h2></div><div class="card-body"><adm-bar-list [items]="categoryBars()" ariaLabel="Revenue by category" /></div></section>
+          <section class="card"><div class="card-head"><h2>Revenue by brand</h2></div><div class="card-body"><adm-bar-list [items]="brandBars()" ariaLabel="Revenue by brand" /></div></section>
+        </div>
+        <section class="card">
+          <div class="card-head"><h2>Best sellers</h2><span class="text-muted text-sm">{{ p.never_sold }} active products never sold</span></div>
+          <div class="table-wrap flat"><table class="table">
+            <thead><tr><th>Product</th><th class="num">Units</th><th class="num">Orders</th><th class="num">Revenue</th></tr></thead>
+            <tbody>@for (r of p.top_products; track r.id) { <tr><td><a class="fw-600" [routerLink]="['/admin/products', r.id, 'edit']">{{ r.name }}</a><div class="text-xs text-muted mono">{{ r.sku }}</div></td><td class="num">{{ r.units }}</td><td class="num">{{ r.orders }}</td><td class="num fw-600">{{ r.revenue | inr: 'whole' }}</td></tr> } @empty { <tr><td colspan="4" class="text-muted">No sales in this period.</td></tr> }</tbody>
+          </table></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><h2>Most viewed</h2></div>
+          <div class="table-wrap flat"><table class="table">
+            <thead><tr><th>Product</th><th class="num">Views</th><th class="num">Sold (all time)</th><th class="num">Conversion</th></tr></thead>
+            <tbody>@for (r of p.most_viewed; track r.id) { <tr><td><a class="fw-600" [routerLink]="['/admin/products', r.id, 'edit']">{{ r.name }}</a></td><td class="num">{{ num(r.view_count) }}</td><td class="num">{{ r.sold_count }}</td><td class="num">{{ r.view_count ? ((r.sold_count / r.view_count) * 100).toFixed(1) + '%' : '—' }}</td></tr> }</tbody>
+          </table></div>
+        </section>
+      }
+    }
+    @case ('customers') {
+      @if (customers(); as c) {
+        <div class="kpis">
+          <adm-stat label="New customers" [value]="c.summary.new_customers" icon="users" [hint]="num(c.summary.total_customers) + ' total'" />
+          <adm-stat label="Buyers" [value]="c.summary.buyers" icon="package" />
+          <adm-stat label="Repeat buyers" [value]="c.summary.repeat_buyers" icon="refresh" [hint]="c.summary.repeat_rate + '% repeat rate'" />
+        </div>
+        <div class="grid-2">
+          <section class="card"><div class="card-head"><h2>Sign-ups</h2></div><div class="card-body"><adm-area-chart [data]="signupSeries()" [height]="220" ariaLabel="Customer sign-ups over time" [format]="num" [axisFormat]="num" color="#334155" /></div></section>
+          <section class="card"><div class="card-head"><h2>Top cities</h2></div><div class="card-body"><adm-bar-list [items]="cityBars()" ariaLabel="Orders by city" /></div></section>
+        </div>
+        <section class="card">
+          <div class="card-head"><h2>Top customers</h2></div>
+          <div class="table-wrap flat"><table class="table">
+            <thead><tr><th>Customer</th><th class="num">Orders</th><th class="num">Spent</th></tr></thead>
+            <tbody>@for (r of c.top_customers; track r.id) { <tr><td><a class="fw-600" [routerLink]="['/admin/customers', r.id]">{{ r.name }}</a><div class="text-xs text-muted">{{ r.email }}</div></td><td class="num">{{ r.orders }}</td><td class="num fw-600">{{ r.spent | inr: 'whole' }}</td></tr> } @empty { <tr><td colspan="3" class="text-muted">No orders in this period.</td></tr> }</tbody>
+          </table></div>
+        </section>
+      }
+    }
+    @case ('inventory') {
+      @if (inventory(); as i) {
+        <div class="kpis">
+          <adm-stat label="SKUs" [value]="i.summary.skus" icon="box" />
+          <adm-stat label="Units on hand" [value]="num(i.summary.units_on_hand)" icon="layers" [hint]="i.summary.units_reserved + ' reserved'" />
+          <adm-stat label="Stock value (cost)" [value]="compact(i.summary.stock_value_cost)" icon="rupee" [hint]="'Retail ' + compact(i.summary.stock_value_retail)" />
+          <adm-stat label="Low / out of stock" [value]="i.summary.low_stock + ' / ' + i.summary.out_of_stock" icon="alert" link="/admin/inventory" />
+        </div>
+        <section class="card"><div class="card-head"><h2>Stock movements in period</h2></div><div class="card-body"><adm-bar-list [items]="movementBars()" color="#334155" ariaLabel="Stock movements by type" /></div></section>
+        <section class="card">
+          <div class="card-head"><h2>Needs reordering</h2></div>
+          <div class="table-wrap flat"><table class="table">
+            <thead><tr><th>Product</th><th>SKU</th><th class="num">On hand</th><th class="num">Reserved</th><th class="num">Available</th><th class="num">Threshold</th></tr></thead>
+            <tbody>@for (r of [...i.out_of_stock, ...i.low_stock]; track r.id) { <tr><td><a class="fw-600" [routerLink]="['/admin/inventory', r.id]">{{ r.product }}</a></td><td class="mono text-sm">{{ r.sku }}</td><td class="num">{{ r.quantity }}</td><td class="num">{{ r.reserved }}</td><td class="num fw-700" [class.text-danger]="r.available <= 0">{{ r.available }}</td><td class="num">{{ r.threshold }}</td></tr> } @empty { <tr><td colspan="6" class="text-muted">Everything is above its threshold.</td></tr> }</tbody>
+          </table></div>
+        </section>
+      }
+    }
+  }
+</div>

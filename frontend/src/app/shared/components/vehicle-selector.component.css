@@ -1,0 +1,17 @@
+:host { display: block; }
+.types { display: inline-flex; background: rgba(255,255,255,.08); border-radius: 999px; padding: 4px; margin-bottom: 12px; }
+.types button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: inherit; padding: 8px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; opacity: .75; }
+.types button.on { background: var(--brand); color: #fff; opacity: 1; }
+.fields { display: grid; gap: 10px; }
+.f { position: relative; display: block; }
+.step { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; pointer-events: none; }
+.select { padding-left: 40px; height: 50px; font-weight: 500; }
+.go { letter-spacing: .06em; }
+.hero .fields { grid-template-columns: 1fr; }
+@media (min-width: 640px) { .hero .fields { grid-template-columns: repeat(2, 1fr); } .hero .go { grid-column: span 2; } }
+@media (min-width: 1024px) { .hero .fields { grid-template-columns: repeat(4, 1fr) auto; } .hero .go { grid-column: auto; } }
+.inline .fields { grid-template-columns: 1fr; }
+@media (min-width: 900px) { .inline .fields { grid-template-columns: repeat(4, 1fr) auto; } }
+.stacked .types { background: var(--line-2); color: var(--ink); }
+.hero .select:disabled, .inline .select:disabled { background-color: #232b39; border-color: #2e3748; color: #8a94a6; }
+.stacked .select:disabled { background-color: var(--surface-2); }

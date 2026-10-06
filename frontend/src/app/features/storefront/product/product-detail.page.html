@@ -1,0 +1,190 @@
+@if (loading() && !product()) {
+  <div class="container pd-grid pt">
+    <div class="skeleton" style="aspect-ratio: 1"></div>
+    <div><div class="skeleton" style="height: 28px; width: 40%"></div><div class="skeleton mt-16" style="height: 48px"></div><div class="skeleton mt-16" style="height: 200px"></div></div>
+  </div>
+} @else if (notFound() || !product()) {
+  <div class="container">
+    <app-empty-state icon="search" title="Product not found" message="This part may have been discontinued or the link is incorrect.">
+      <a class="btn btn-primary" routerLink="/shop">Browse all parts</a>
+    </app-empty-state>
+  </div>
+} @else {
+  @let p = product()!;
+  <div class="container">
+    <div class="page-title"><app-breadcrumb [items]="crumbs()" /></div>
+
+    <div class="pd-grid">
+      <app-product-gallery [images]="p.images" [videoUrl]="p.video_url" />
+
+      <div class="info">
+        <a class="brand" [routerLink]="['/brand', p.brand.slug]">{{ p.brand.name }}</a>
+        <h1>{{ p.name }}</h1>
+        <div class="row wrap gap-16 meta">
+          @if (p.review_count) {
+            <button type="button" class="linkish" (click)="showTab('reviews')"><app-rating [value]="p.rating" [count]="p.review_count" [size]="16" /></button>
+          } @else { <span class="text-sm text-muted">No reviews yet</span> }
+          <span class="text-sm text-muted">SKU: <span class="mono">{{ p.sku }}</span></span>
+          @if (p.part_number) { <span class="text-sm text-muted">Part no: <span class="mono">{{ p.part_number }}</span></span> }
+        </div>
+
+        <div class="price-box">
+          <app-price [price]="p.price" [mrp]="p.mrp" size="lg" />
+          <span class="text-xs text-muted">Price excludes {{ p.tax_rate }}% GST, which is added at checkout.</span>
+        </div>
+
+        <!-- Fitment -->
+        @if (p.is_universal) {
+          <div class="fit fit-uni"><app-icon name="globe" /><div><strong>Universal fit</strong><span>Works with most {{ p.vehicle_type === 'motorcycle' ? 'motorcycles' : p.vehicle_type === 'car' ? 'cars' : 'vehicles' }}.</span></div></div>
+        } @else if (fit(); as f) {
+          <div class="fit" [class.fit-yes]="f.fits" [class.fit-no]="!f.fits">
+            <app-icon [name]="f.fits ? 'check-circle' : 'alert'" />
+            <div>
+              <strong>{{ f.fits ? 'Fits your ' + f.vehicle : 'Does not fit your ' + f.vehicle }}</strong>
+              <span>{{ f.fits ? 'Guaranteed fitment — or a free return.' : 'See the compatibility list for vehicles this part fits.' }}</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-ghost" (click)="ui.vehicleModalOpen.set(true)">Change</button>
+          </div>
+        } @else {
+          <div class="fit fit-ask">
+            <app-icon name="car" />
+            <div><strong>Will it fit your vehicle?</strong><span>Select your vehicle to check compatibility instantly.</span></div>
+            <button type="button" class="btn btn-sm btn-primary" (click)="ui.vehicleModalOpen.set(true)">Check fit</button>
+          </div>
+        }
+
+        <div class="stock-line">
+          @switch (p.inventory.status) {
+            @case ('in_stock') { <span class="text-success fw-600"><app-icon name="check-circle" [size]="16" /> In stock</span> }
+            @case ('low_stock') { <span class="text-warning fw-600"><app-icon name="alert" [size]="16" /> Hurry — only {{ p.inventory.available }} left</span> }
+            @case ('backorder') { <span class="fw-600" style="color: var(--info)"><app-icon name="clock" [size]="16" /> Available on backorder</span> }
+            @default { <span class="text-danger fw-600"><app-icon name="x" [size]="16" /> Currently out of stock</span> }
+          }
+          <span class="text-muted text-sm"><app-icon name="truck" [size]="16" /> Delivery in 4–6 days · Free above ₹2,999</span>
+        </div>
+
+        @if (p.variants.length) {
+          <div class="variants">
+            <span class="label">Options</span>
+            <div class="row wrap gap-8">@for (v of p.variants; track v.id) { <span class="chip">{{ v.name }} · {{ v.price | inr }}</span> }</div>
+          </div>
+        }
+
+        <div class="buy" id="buy">
+          <app-qty [(value)]="qty" [max]="maxQty()" [disabled]="p.inventory.status === 'out_of_stock'" />
+          <app-add-to-cart-button [productId]="p.id" [quantity]="qty()" [stockStatus]="p.inventory.status" size="lg" />
+          <button type="button" class="btn btn-dark btn-lg" [disabled]="p.inventory.status === 'out_of_stock' || buying()" (click)="buyNow()">
+            @if (buying()) { <span class="spinner"></span> } Buy now
+          </button>
+        </div>
+        <div class="row gap-8 secondary">
+          <app-wishlist-button [productId]="p.id" variant="button" />
+          <button type="button" class="btn btn-lg" (click)="share()"><app-icon name="share" [size]="18" /> Share</button>
+        </div>
+
+        <ul class="perks list-reset">
+          <li><app-icon name="shield" [size]="18" /><span><strong>Warranty</strong>{{ p.warranty || 'Manufacturer warranty' }}</span></li>
+          <li><app-icon name="rotate" [size]="18" /><span><strong>7-day returns</strong>Free pickup if it doesn't fit</span></li>
+          <li><app-icon name="file" [size]="18" /><span><strong>GST invoice</strong>Claim input tax credit</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Details -->
+    <section id="details" class="details">
+      <div class="tabs" role="tablist">
+        <button role="tab" [class.active]="tab() === 'description'" (click)="tab.set('description')">Description</button>
+        <button role="tab" [class.active]="tab() === 'specs'" (click)="tab.set('specs')">Specifications</button>
+        <button role="tab" [class.active]="tab() === 'compatibility'" (click)="tab.set('compatibility')">Compatibility ({{ p.is_universal ? 'Universal' : p.compatibility.length }})</button>
+        <button role="tab" [class.active]="tab() === 'installation'" (click)="tab.set('installation')">Installation</button>
+        <button role="tab" [class.active]="tab() === 'reviews'" (click)="tab.set('reviews')">Reviews ({{ p.review_count }})</button>
+        <button role="tab" [class.active]="tab() === 'faq'" (click)="tab.set('faq')">FAQs</button>
+      </div>
+      <div class="tab-body">
+        @switch (tab()) {
+          @case ('description') {
+            <div class="desc-grid">
+              <div class="prose" [innerHTML]="p.description"></div>
+              <aside class="card card-body">
+                <h3>What's included</h3>
+                <ul class="included list-reset">@for (i of p.whats_included; track $index) { <li><app-icon name="check" [size]="16" /> {{ i }}</li> }</ul>
+                @if (p.tags.length) { <h3 class="mt-16">Tags</h3><div class="row wrap gap-8">@for (t of p.tags; track t) { <a class="chip" routerLink="/search" [queryParams]="{ q: t }">{{ t }}</a> }</div> }
+              </aside>
+            </div>
+          }
+          @case ('specs') {
+            <table class="table spec">
+              <tbody>
+                <tr><th>Brand</th><td>{{ p.brand.name }} @if (p.brand.country) { ({{ p.brand.country }}) }</td></tr>
+                <tr><th>SKU</th><td class="mono">{{ p.sku }}</td></tr>
+                @if (p.part_number) { <tr><th>Part number</th><td class="mono">{{ p.part_number }}</td></tr> }
+                @if (p.position) { <tr><th>Position</th><td>{{ p.position }}</td></tr> }
+                @if (p.material) { <tr><th>Material</th><td>{{ p.material }}</td></tr> }
+                @if (p.dimensions) { <tr><th>Dimensions</th><td>{{ p.dimensions }}</td></tr> }
+                @if (p.weight_kg) { <tr><th>Weight</th><td>{{ p.weight_kg }} kg</td></tr> }
+                @for (s of p.specifications; track s.label) { <tr><th>{{ s.label }}</th><td>{{ s.value }}</td></tr> }
+                @for (a of p.attributes; track a.name) { <tr><th>{{ a.name }}</th><td>{{ a.values.join(', ') }}</td></tr> }
+                <tr><th>Warranty</th><td>{{ p.warranty || '—' }}</td></tr>
+                <tr><th>GST</th><td>{{ p.tax_rate }}%</td></tr>
+              </tbody>
+            </table>
+          }
+          @case ('compatibility') {
+            @if (p.is_universal) {
+              <div class="alert alert-info"><app-icon name="globe" /> This is a universal product designed to fit most {{ p.vehicle_type === 'motorcycle' ? 'motorcycles' : 'vehicles' }}. Check dimensions in Specifications.</div>
+            } @else if (!p.compatibility.length) {
+              <p class="text-muted">Compatibility information is not available. Contact support with your vehicle details.</p>
+            } @else {
+              <div class="compat">
+                @for (g of groupedCompat(); track g.make) {
+                  <div class="card">
+                    <div class="card-head"><h3>{{ g.make }}</h3><span class="badge">{{ g.rows.length }}</span></div>
+                    <table class="table">
+                      <thead><tr><th>Model</th><th>Variant</th><th>Years</th><th>Fuel / Trans.</th></tr></thead>
+                      <tbody>
+                        @for (c of g.rows; track c.id) {
+                          <tr [class.mine]="c.variant?.id === vehicle.variantId() || (!c.variant && c.model?.id === vehicle.selected()?.modelId)">
+                            <td class="fw-600">{{ c.model?.name ?? 'All models' }}</td>
+                            <td>{{ c.variant?.name ?? 'All variants' }}</td>
+                            <td>{{ c.year_from ?? '…' }}–{{ c.year_to ?? 'present' }}</td>
+                            <td>{{ c.variant?.fuel_type ?? 'All' }}{{ c.variant?.transmission ? ' · ' + c.variant!.transmission : '' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            }
+          }
+          @case ('installation') {
+            <div class="prose"><p>{{ p.installation_info || 'Installation guidance is included in the box.' }}</p></div>
+          }
+          @case ('reviews') {
+            <app-review-list [productId]="p.id" [productSlug]="p.slug" />
+          }
+          @case ('faq') {
+            <div class="faqs">
+              @for (f of p.faqs; track $index) {
+                <details class="card"><summary>{{ f.question }}</summary><p>{{ f.answer }}</p></details>
+              } @empty { <p class="text-muted">No questions yet.</p> }
+            </div>
+          }
+        }
+      </div>
+    </section>
+
+    @if (related().length) {
+      <section class="section">
+        <div class="section-head"><h2>You may also need</h2></div>
+        <app-product-grid [products]="related().slice(0, 4)" />
+      </section>
+    }
+  </div>
+
+  <!-- Sticky mobile action bar -->
+  <div class="sticky-buy hide-desktop">
+    <div><strong>{{ p.price | inr }}</strong>@if (p.discount_percent) { <span class="price-off"> {{ p.discount_percent }}% off</span> }</div>
+    <app-add-to-cart-button [productId]="p.id" [quantity]="qty()" [stockStatus]="p.inventory.status" />
+  </div>
+}

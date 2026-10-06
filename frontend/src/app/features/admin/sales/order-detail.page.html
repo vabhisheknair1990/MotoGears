@@ -1,0 +1,164 @@
+@if (state() === 'missing') {
+  <div class="card"><app-empty-state icon="package" title="Order not found" message="It may have been removed, or the link is wrong."><a routerLink="/admin/orders" class="btn btn-primary">Back to orders</a></app-empty-state></div>
+} @else if (order(); as o) {
+  <adm-page-header [title]="'Order ' + o.order_number" [subtitle]="'Placed ' + (o.placed_at | appDate: true) + ' · ' + (o.total_quantity ?? 0) + ' items'" back="/admin/orders" backLabel="Orders">
+    <a class="btn" [routerLink]="['/admin/invoice', o.id]"><app-icon name="file" [size]="16" /> Invoice</a>
+  </adm-page-header>
+
+  <div class="badges">
+    <app-status-badge [status]="o.status" [label]="o.status_label" />
+    <app-status-badge [status]="o.payment_status" [label]="'Payment ' + o.payment_status" />
+    <span class="badge">{{ o.payment_method_label }}</span>
+    <span class="badge">{{ o.shipping_method === 'express' ? 'Express shipping' : 'Standard shipping' }}</span>
+    @if (o.coupon_code) { <span class="badge badge-accent">Coupon {{ o.coupon_code }}</span> }
+  </div>
+
+  <div class="layout">
+    <div class="stack-18">
+      <section class="card">
+        <div class="card-head"><h2>Items</h2></div>
+        <div class="table-wrap flat">
+          <table class="table">
+            <thead><tr><th>Product</th><th class="num">Price</th><th class="num">Qty</th><th class="num hide-mobile">GST</th><th class="num">Total</th></tr></thead>
+            <tbody>
+              @for (it of o.items ?? []; track it.id) {
+                <tr>
+                  <td>
+                    <div class="prod">
+                      @if (it.image) { <img class="thumb" [src]="it.image" alt="" /> }
+                      <div>
+                        @if (it.product_id) { <a class="fw-600 plain" [routerLink]="['/admin/products', it.product_id, 'edit']">{{ it.product_name }}</a> } @else { <span class="fw-600">{{ it.product_name }}</span> }
+                        <div class="text-xs text-muted"><span class="mono">{{ it.sku }}</span> · {{ it.brand_name }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="num">{{ it.unit_price | inr }}@if (it.mrp > it.unit_price) { <div class="text-xs text-muted strike">{{ it.mrp | inr }}</div> }</td>
+                  <td class="num">{{ it.quantity }}</td>
+                  <td class="num hide-mobile">{{ it.tax_amount | inr }} <span class="text-xs text-muted">({{ it.tax_rate }}%)</span></td>
+                  <td class="num fw-600">{{ it.line_total | inr }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <dl class="totals">
+          <dt>Subtotal</dt><dd>{{ o.subtotal | inr }}</dd>
+          @if (o.discount) { <dt>Discount</dt><dd class="text-success">−{{ o.discount | inr }}</dd> }
+          <dt>Shipping</dt><dd>{{ o.shipping ? (o.shipping | inr) : 'Free' }}</dd>
+          <dt>GST</dt><dd>{{ o.tax | inr }}</dd>
+          <dt class="grand">Grand total</dt><dd class="grand">{{ o.grand_total | inr }}</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Timeline</h2></div>
+        <div class="card-body">
+          <app-order-timeline [status]="o.status" [entries]="o.timeline ?? []" />
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Payments</h2></div>
+        <div class="table-wrap flat">
+          <table class="table">
+            <thead><tr><th>Transaction</th><th>Method</th><th>Status</th><th class="num">Amount</th></tr></thead>
+            <tbody>
+              @for (p of o.payments ?? []; track p.id) {
+                <tr>
+                  <td><span class="mono text-sm">{{ p.transaction_id ?? '—' }}</span><div class="text-xs text-muted">{{ p.created_at | appDate: true }}</div></td>
+                  <td>{{ p.method_label }}@if (p.details.last4) { <div class="text-xs text-muted">{{ p.details.brand }} •••• {{ p.details.last4 }}</div> }@if (p.details.vpa) { <div class="text-xs text-muted">{{ p.details.vpa }}</div> }</td>
+                  <td><app-status-badge [status]="p.status" />@if (p.failure_reason) { <div class="text-xs text-danger">{{ p.failure_reason }}</div> }</td>
+                  <td class="num">{{ p.amount | inr }}</td>
+                </tr>
+              } @empty { <tr><td colspan="4" class="text-muted">No payment attempts recorded.</td></tr> }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="stack-18">
+      @if (canManage()) {
+        <section class="card">
+          <div class="card-head"><h2>Update status</h2></div>
+          <div class="card-body">
+            @if (o.allowed_transitions?.length) {
+              <form [formGroup]="statusForm" (ngSubmit)="updateStatus()" novalidate>
+                <div class="field">
+                  <label class="label" for="st">New status <span class="req">*</span></label>
+                  <select id="st" class="select" formControlName="status">
+                    <option value="">Choose…</option>
+                    @for (t of o.allowed_transitions; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+                  </select>
+                  @if (statusForm.controls.status.invalid && statusForm.controls.status.touched) { <span class="error-text">{{ statusForm.controls.status.errors?.['server'] ?? 'Choose the next status.' }}</span> }
+                </div>
+                @if (needsTracking()) {
+                  <div class="form-grid cols-2">
+                    <div class="field"><label class="label" for="car">Carrier</label><input id="car" class="input" formControlName="carrier" placeholder="Delhivery" /></div>
+                    <div class="field"><label class="label" for="trk">Tracking #</label><input id="trk" class="input" formControlName="tracking_number" /></div>
+                  </div>
+                }
+                <div class="field">
+                  <label class="label" for="cm">Comment</label>
+                  <textarea id="cm" class="textarea" rows="2" formControlName="comment" placeholder="Visible in the order timeline"></textarea>
+                </div>
+                <label class="check"><input type="checkbox" formControlName="notify_customer" /> Email the customer</label>
+                <button class="btn btn-primary btn-block" [disabled]="savingStatus()">@if (savingStatus()) { <span class="spinner"></span> } Update status</button>
+                <p class="hint mt-8">Cancelling or returning an order restocks its items automatically.</p>
+              </form>
+            } @else {
+              <p class="text-muted text-sm mb-0">This order is <strong>{{ o.status_label }}</strong> — no further status changes are possible.</p>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="card">
+        <div class="card-head"><h2>Customer</h2></div>
+        <div class="card-body text-sm">
+          @if (o.customer; as c) {
+            <a class="fw-600 plain" [routerLink]="['/admin/customers', c.id]">{{ c.name }}</a>
+            <div><a class="link" [href]="'mailto:' + c.email">{{ c.email }}</a></div>
+            @if (c.phone) { <div>{{ c.phone }}</div> }
+          } @else { <span class="text-muted">Guest / deleted customer</span> }
+          @if (o.customer_notes) { <div class="note"><strong>Customer note:</strong> {{ o.customer_notes }}</div> }
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Shipping address</h2><button type="button" class="icon-btn sm" aria-label="Copy address" (click)="copy(o.shipping_address.name + ', ' + o.shipping_address.line1 + ', ' + o.shipping_address.city + ' ' + o.shipping_address.postal_code)"><app-icon name="copy" [size]="15" /></button></div>
+        <address class="card-body">
+          <strong>{{ o.shipping_address.name }}</strong><br />
+          {{ o.shipping_address.line1 }}@if (o.shipping_address.line2) {, {{ o.shipping_address.line2 }}}<br />
+          @if (o.shipping_address.landmark) { {{ o.shipping_address.landmark }}<br /> }
+          {{ o.shipping_address.city }}, {{ o.shipping_address.state }} {{ o.shipping_address.postal_code }}<br />
+          {{ o.shipping_address.phone }}
+        </address>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Billing address</h2></div>
+        <address class="card-body">
+          <strong>{{ o.billing_address.name }}</strong><br />{{ o.billing_address.line1 }}<br />{{ o.billing_address.city }}, {{ o.billing_address.state }} {{ o.billing_address.postal_code }}
+        </address>
+      </section>
+
+      @if (canManage()) {
+        <section class="card">
+          <div class="card-head"><h2>Internal notes &amp; tracking</h2></div>
+          <form class="card-body" [formGroup]="notesForm" (ngSubmit)="saveNotes()" novalidate>
+            <div class="form-grid cols-2">
+              <div class="field"><label class="label" for="n-car">Carrier</label><input id="n-car" class="input" formControlName="carrier" /></div>
+              <div class="field"><label class="label" for="n-trk">Tracking #</label><input id="n-trk" class="input" formControlName="tracking_number" /></div>
+            </div>
+            <div class="field"><label class="label" for="n-notes">Notes (staff only)</label><textarea id="n-notes" class="textarea" rows="3" formControlName="admin_notes"></textarea></div>
+            <button class="btn btn-block" [disabled]="savingNotes() || notesForm.pristine">@if (savingNotes()) { <span class="spinner"></span> } Save</button>
+          </form>
+        </section>
+      }
+    </aside>
+  </div>
+} @else {
+  <div class="skeleton" style="height:40px;width:40%;margin-bottom:20px"></div>
+  <div class="card"><div class="skeleton" style="height:360px;margin:16px"></div></div>
+}

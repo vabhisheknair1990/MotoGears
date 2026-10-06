@@ -1,0 +1,24 @@
+:host { position: relative; display: block; width: 100%; }
+.sb { color: var(--ink); display: flex; align-items: center; height: 46px; border-radius: 999px; background: #fff; border: 1px solid var(--line); padding: 0 6px 0 14px; gap: 8px; }
+.sb:focus-within { box-shadow: 0 0 0 3px rgba(215, 38, 61, .35); border-color: var(--brand); }
+.lead { color: var(--muted); }
+input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; height: 100%; font-size: 14px; color: var(--ink); caret-color: var(--brand); }
+input::placeholder { color: var(--muted); opacity: 1; }
+input::-webkit-search-cancel-button { display: none; }
+.go { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--brand); color: #fff; display: grid; place-items: center; flex: none; }
+.go:hover { background: var(--brand-600); }
+.spinner { color: var(--muted); width: 16px; height: 16px; }
+.panel { position: absolute; z-index: 80; top: calc(100% + 8px); left: 0; right: 0; background: #fff; color: var(--ink); border-radius: var(--radius); box-shadow: var(--shadow-lg); border: 1px solid var(--line); padding: 8px; max-height: 72vh; overflow-y: auto; animation: pop .15s ease; }
+.grp { padding: 8px; }
+h4 { margin: 0 0 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips .chip { cursor: pointer; }
+.linkish { border: 0; background: none; color: var(--brand); font-size: 12px; font-weight: 600; }
+.prod { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--radius-sm); font-size: 14px; }
+.prod:hover { background: var(--surface-2); color: var(--ink); }
+.prod .grow { display: flex; flex-direction: column; }
+.thumb { width: 44px; height: 44px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.lnk { display: block; padding: 5px 0; font-size: 14px; }
+.none { padding: 16px; color: var(--muted); margin: 0; }
+.all { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; border: 0; border-top: 1px solid var(--line); background: none; padding: 12px; font-weight: 600; color: var(--brand); }

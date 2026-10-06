@@ -1,0 +1,91 @@
+<div class="rv">
+  <div class="summary card">
+    @if (summary(); as s) {
+      <div class="avg">
+        <strong>{{ s.average ? s.average.toFixed(1) : '–' }}</strong>
+        <app-rating [value]="s.average" [size]="18" />
+        <span class="text-muted text-sm">{{ s.count }} {{ s.count === 1 ? 'review' : 'reviews' }}</span>
+      </div>
+      <ul class="dist list-reset">
+        @for (star of [5, 4, 3, 2, 1]; track star) {
+          <li>
+            <button type="button" [class.on]="ratingFilter() === star" (click)="filterBy(star)" [attr.aria-label]="'Show ' + star + '-star reviews'">
+              <span>{{ star }}★</span><span class="bar"><i [style.width.%]="pct(star)"></i></span><span class="n">{{ s.distribution[star] ?? 0 }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+    @if (auth.isLoggedIn()) {
+      <button type="button" class="btn btn-dark btn-block" (click)="writing.set(!writing())"><app-icon name="edit" [size]="16" /> Write a review</button>
+      <p class="text-xs text-muted mb-0">Only verified purchasers can review. Reviews appear after moderation.</p>
+    } @else {
+      <a class="btn btn-block" routerLink="/login" [queryParams]="{ returnUrl: '/products/' + productSlug() }">Log in to write a review</a>
+    }
+  </div>
+
+  <div class="list">
+    @if (writing()) {
+      <form class="card card-body write" (ngSubmit)="submit()" #f="ngForm">
+        <h3>Your review</h3>
+        @if (formError()) { <div class="alert alert-danger">{{ formError() }}</div> }
+        <div class="field">
+          <span class="label">Rating <span class="req">*</span></span>
+          <app-rating [editable]="true" [(value)]="form.rating" />
+        </div>
+        <div class="field">
+          <label class="label" for="rv-title">Title</label>
+          <input id="rv-title" class="input" name="title" [(ngModel)]="form.title" maxlength="120" placeholder="Sum it up in a few words" />
+        </div>
+        <div class="field">
+          <label class="label" for="rv-comment">Review <span class="req">*</span></label>
+          <textarea id="rv-comment" class="textarea" name="comment" [(ngModel)]="form.comment" required minlength="10" maxlength="2000"
+                    placeholder="How was the fit, quality and performance?" [class.invalid]="errors()['comment']"></textarea>
+          @if (errors()['comment']) { <span class="error-text">{{ errors()['comment'][0] }}</span> }
+        </div>
+        <div class="field">
+          <label class="label" for="rv-img">Photos (up to 4)</label>
+          <input id="rv-img" type="file" accept="image/jpeg,image/png,image/webp" multiple (change)="onFiles($event)" />
+        </div>
+        <div class="row end">
+          <button type="button" class="btn" (click)="writing.set(false)">Cancel</button>
+          <button class="btn btn-primary" [disabled]="submitting() || f.invalid">@if (submitting()) { <span class="spinner"></span> } Submit review</button>
+        </div>
+      </form>
+    }
+
+    <div class="row between sort-row">
+      <strong>{{ meta()?.total ?? 0 }} reviews @if (ratingFilter()) { · {{ ratingFilter() }}★ <button type="button" class="link clear" (click)="filterBy(null)">clear</button> }</strong>
+      <select class="select input-sm" style="width: auto" (change)="sort.set($any($event.target).value); load(1)" aria-label="Sort reviews">
+        <option value="">Most relevant</option><option value="recent">Newest</option><option value="highest">Highest rated</option><option value="lowest">Lowest rated</option><option value="helpful">Most helpful</option>
+      </select>
+    </div>
+
+    @if (loading()) {
+      <div class="skeleton" style="height: 90px; margin-bottom: 12px"></div>
+      <div class="skeleton" style="height: 90px"></div>
+    } @else {
+      @for (r of items(); track r.id) {
+        <article class="review">
+          <div class="row between">
+            <app-rating [value]="r.rating" [size]="15" />
+            <span class="text-xs text-muted">{{ r.created_at | appDate }}</span>
+          </div>
+          @if (r.title) { <h4>{{ r.title }}</h4> }
+          <p>{{ r.comment }}</p>
+          @if (r.images?.length) {
+            <div class="imgs">@for (i of r.images; track i.id) { <img [src]="i.url" alt="Customer photo" loading="lazy" /> }</div>
+          }
+          <div class="row gap-8 text-xs text-muted">
+            <strong class="text-sm" style="color: var(--ink)">{{ r.author }}</strong>
+            @if (r.is_verified_purchase) { <span class="badge badge-success"><app-icon name="check" [size]="12" /> Verified purchase</span> }
+            @if (r.is_featured) { <span class="badge badge-accent">Top review</span> }
+          </div>
+        </article>
+      } @empty {
+        <app-empty-state icon="star" title="No reviews yet" message="Be the first to share your experience with this part." />
+      }
+      <app-pagination [meta]="meta()" [showSummary]="false" (pageChange)="load($event)" />
+    }
+  </div>
+</div>

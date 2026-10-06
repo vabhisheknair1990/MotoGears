@@ -27,8 +27,9 @@ coupons, orders, payments, permissions, compatibility and customer data.
 Requirements: Docker Desktop (or Docker Engine + Compose v2).
 
 ```bash
-cd automotive-shop
-docker compose up --build
+cd MotoGears
+cp .env.example .env        # local settings (also enables phpMyAdmin)
+docker compose up -d --build
 ```
 
 First boot takes a few minutes (image builds, `composer install`, `npm install`, migrations and
@@ -41,7 +42,7 @@ empty**, links storage and starts the scheduler.
 | Admin console | http://localhost:4200/admin |
 | REST API | http://localhost:8000/v1 |
 | API docs (Swagger UI) | http://localhost:8000/docs |
-| phpMyAdmin | http://localhost:8090 (root / root) |
+| phpMyAdmin | http://localhost:8090 (only with `COMPOSE_PROFILES=tools`, set in `.env.example`) |
 | MySQL from the host | not published by default — use phpMyAdmin, or uncomment the `ports` lines under `mysql` in `docker-compose.yml` (db `automotive_shop`, user `motogears` / `motogears`) |
 
 In Docker the Angular production build is served by nginx, which proxies `/api` to Laravel, so the
@@ -310,28 +311,40 @@ The site and the API run on two hosts:
 | `api.themotogears.in` | Laravel API at `/v1`, docs at `/docs`, images at `/storage` | the `backend` container (port 8000 inside) |
 
 1. **DNS** — A/AAAA records for `themotogears.in`, `www.themotogears.in` and `api.themotogears.in` to the server.
-2. **Environment** — in the repo root `.env` (read by Docker Compose) set `API_URL=https://api.themotogears.in/v1`;
-   for the backend set:
+2. **Environment** — every setting in `docker-compose.yml` is read from the `.env` file next to it:
+   ```bash
+   cp .env.production.example .env
+   nano .env                      # set DB passwords, mail, Razorpay live keys
+   docker compose up -d --build   # rebuild the frontend whenever API_URL changes
    ```
-   APP_ENV=production
-   APP_DEBUG=false
-   APP_URL=https://api.themotogears.in
-   FRONTEND_URL=https://themotogears.in
-   CORS_ALLOWED_ORIGINS=https://themotogears.in,https://www.themotogears.in
-   ```
-   (In `docker-compose.yml` these are the `backend` service's `environment:` values — change them there or move
-   them to an env file.)
-3. **HTTPS reverse proxy** in front (nginx, Caddy, a load balancer…), e.g. nginx:
+   It sets `API_URL=https://api.themotogears.in/v1` (baked into the shop), `APP_URL=https://api.themotogears.in`,
+   `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS=https://themotogears.in,https://www.themotogears.in`, `APP_ENV=production`,
+   `APP_DEBUG=false`, keeps phpMyAdmin off and binds the ports to `127.0.0.1` so only the proxy can reach them.
+   > **Database passwords** are applied only when the MySQL volume is first created. On a server that already
+   > started with the defaults, either keep `DB_PASSWORD=motogears` / `DB_ROOT_PASSWORD=root` for now and change
+   > them in MySQL later, or reset the demo database with `docker compose down -v` (deletes all data) before
+   > starting with the new values.
+3. **HTTPS reverse proxy** on the server — **one `server` block per host**; the `api.` host must go to the
+   backend (port 8000), not the shop. Example nginx:
    ```nginx
-   server { server_name themotogears.in www.themotogears.in;  location / { proxy_pass http://127.0.0.1:4200; } }
-   server { server_name api.themotogears.in;  client_max_body_size 20m;
-            location / { proxy_pass http://127.0.0.1:8000;
-                         proxy_set_header Host $host;
-                         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                         proxy_set_header X-Forwarded-Proto $scheme; } }
+   server {
+       server_name themotogears.in www.themotogears.in;
+       location / { proxy_pass http://127.0.0.1:4200; proxy_set_header Host $host; }
+   }
+   server {
+       server_name api.themotogears.in;
+       client_max_body_size 20m;
+       location / {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+           proxy_read_timeout 120s;
+       }
+   }
    ```
-   plus certificates (e.g. `certbot --nginx -d themotogears.in -d www.themotogears.in -d api.themotogears.in`).
-   Keep `TRUSTED_PROXIES` set to the proxy's address so client IPs and HTTPS are detected correctly.
+   Then certificates: `certbot --nginx -d themotogears.in -d www.themotogears.in -d api.themotogears.in`.
+   Check: `https://api.themotogears.in/v1/settings` must return JSON (`{"success":true,…}`), not the shop page.
 4. **Razorpay webhook** — `https://api.themotogears.in/v1/webhooks/razorpay`.
 
 Old `/api/v1/...` and `/api/docs` addresses redirect to the new ones.

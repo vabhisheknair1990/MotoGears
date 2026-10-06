@@ -1,9 +1,17 @@
-# MotoGears — full local stack: Angular (nginx) + Laravel API + MySQL 8 + phpMyAdmin.
-#   docker compose up --build
-# Storefront  http://localhost:4200     Admin  http://localhost:4200/admin
-# API         http://localhost:8000/v1       Docs  http://localhost:8000/docs
-# (production: https://themotogears.in + https://api.themotogears.in/v1)
-# phpMyAdmin  http://localhost:8090
+# MotoGears — full stack: Angular (nginx) + Laravel API + MySQL 8 + phpMyAdmin.
+#
+#   Local:      cp .env.example .env              && docker compose up -d --build
+#   Production: cp .env.production.example .env  (fill in passwords/keys) && docker compose up -d --build
+#
+# Every setting below comes from ./.env (next to this file); the value after ":-" is the
+# local-development default used when .env doesn't set it.
+#
+# Local URLs   Shop http://localhost:4200   Admin http://localhost:4200/admin
+#              API  http://localhost:8000/v1   Docs http://localhost:8000/docs   phpMyAdmin http://localhost:8090
+# Production   https://themotogears.in  +  https://api.themotogears.in/v1  (behind an HTTPS reverse proxy)
+#
+# Ports listen on 127.0.0.1 only (BIND_ADDRESS): reachable from this machine and from a
+# reverse proxy on it, never directly from the internet.
 name: motogears
 
 services:
@@ -11,21 +19,20 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: automotive_shop
-      MYSQL_USER: motogears
-      MYSQL_PASSWORD: motogears
-      MYSQL_ROOT_PASSWORD: root
-      TZ: Asia/Kolkata
+      MYSQL_DATABASE: ${DB_DATABASE:-automotive_shop}
+      MYSQL_USER: ${DB_USERNAME:-motogears}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-motogears}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      TZ: ${TZ:-Asia/Kolkata}
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
-    # No host port: the app reaches MySQL inside Docker, and phpMyAdmin is on :8090.
-    # (Publishing 3306/3307 often clashes with a local MySQL or Windows' reserved port ranges.)
+    # No host port: the app reaches MySQL inside Docker; use phpMyAdmin locally.
     # To use a desktop DB client, uncomment and pick a free port:
     # ports:
-    #   - "13306:3306"
+    #   - "127.0.0.1:13306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -37,31 +44,41 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8000
-      FRONTEND_URL: http://localhost:4200
-      CORS_ALLOWED_ORIGINS: http://localhost:4200,http://127.0.0.1:4200
-      SANCTUM_STATEFUL_DOMAINS: localhost:4200,127.0.0.1:4200
+      APP_NAME: ${APP_NAME:-MotoGears}
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://127.0.0.1:4200}
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-localhost:4200,127.0.0.1:4200}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_DATABASE: automotive_shop
-      DB_USERNAME: motogears
-      DB_PASSWORD: motogears
+      DB_DATABASE: ${DB_DATABASE:-automotive_shop}
+      DB_USERNAME: ${DB_USERNAME:-motogears}
+      DB_PASSWORD: ${DB_PASSWORD:-motogears}
       FILESYSTEM_DISK: local
       MEDIA_DISK: public
       # Product imports run in a background queue worker started by the entrypoint.
       QUEUE_CONNECTION: database
       DB_QUEUE_RETRY_AFTER: "3700"
-      TRUSTED_PROXIES: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
-      # Payments — values come from ./.env next to this file (copy .env.example → .env).
+      # Proxies allowed to set X-Forwarded-* (Docker networks + a reverse proxy on this host).
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,172.16.0.0/12,192.168.0.0/16,10.0.0.0/8}
+      # Mail (password reset, order emails). "log" writes them to storage/logs instead of sending.
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-no-reply@themotogears.in}
+      # Payments
       PAYMENT_DEMO_METHODS: ${PAYMENT_DEMO_METHODS:-true}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
     ports:
-      - "8000:8000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${API_PORT:-8000}:8000"
     volumes:
       - backend-storage:/var/www/html/storage/app # uploaded images survive rebuilds
 
@@ -69,16 +86,20 @@ services:
     build:
       context: ./frontend
       args:
-        # Where the browser calls the API. Production builds default to https://api.themotogears.in/v1.
+        # Where visitors' browsers call the API. Baked into the build — rebuild after changing it.
+        # Production MUST set API_URL=https://api.themotogears.in/v1 in .env.
         API_URL: ${API_URL:-http://localhost:8000/v1}
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "4200:80"
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-4200}:80"
 
+  # Database browser for local development. Never expose it publicly: it logs in as root.
+  # Disabled in production by COMPOSE_PROFILES (see .env.production.example).
   phpmyadmin:
     image: phpmyadmin:5
+    profiles: ["tools"]
     restart: unless-stopped
     depends_on:
       mysql:
@@ -86,9 +107,9 @@ services:
     environment:
       PMA_HOST: mysql
       PMA_USER: root
-      PMA_PASSWORD: root
+      PMA_PASSWORD: ${DB_ROOT_PASSWORD:-root}
     ports:
-      - "8090:80" # 8080 is often taken by other local projects
+      - "127.0.0.1:${PMA_PORT:-8090}:80"
 
 volumes:
   mysql-data:

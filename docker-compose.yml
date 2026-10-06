@@ -1,14 +1,12 @@
-# MotoGears — full stack: Angular (nginx) + Laravel API + MySQL 8 + phpMyAdmin.
+# MotoGears — PRODUCTION BRANCH (themotogears.in): Angular (nginx) + Laravel API + MySQL 8.
 #
-#   Local:      cp .env.example .env              && docker compose up -d --build
-#   Production: cp .env.production.example .env  (fill in passwords/keys) && docker compose up -d --build
+#   cp .env.example .env   # set ADMIN_PASSWORD, DB passwords, mail and Razorpay live keys
+#   docker compose up -d --build
 #
 # Every setting below comes from ./.env (next to this file); the value after ":-" is the
-# local-development default used when .env doesn't set it.
+# production default used when .env doesn't set it. For local development use the main branch.
 #
-# Local URLs   Shop http://localhost:4200   Admin http://localhost:4200/admin
-#              API  http://localhost:8000/v1   Docs http://localhost:8000/docs   phpMyAdmin http://localhost:8090
-# Production   https://themotogears.in  +  https://api.themotogears.in/v1  (behind an HTTPS reverse proxy)
+# Behind the HTTPS reverse proxy: themotogears.in → 127.0.0.1:4200, api.themotogears.in → 127.0.0.1:8000
 #
 # Ports listen on 127.0.0.1 only (BIND_ADDRESS): reachable from this machine and from a
 # reverse proxy on it, never directly from the internet.
@@ -45,18 +43,18 @@ services:
         condition: service_healthy
     environment:
       APP_NAME: ${APP_NAME:-MotoGears}
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-http://localhost:8000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://127.0.0.1:4200}
-      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-localhost:4200,127.0.0.1:4200}
-      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-https://api.themotogears.in}
+      FRONTEND_URL: ${FRONTEND_URL:-https://themotogears.in}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://themotogears.in,https://www.themotogears.in}
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-themotogears.in,www.themotogears.in}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
       # First start on an empty database: true = demo store (local); false = clean live store
       # with the admin below (production). Ignored once the database has data.
-      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       ADMIN_NAME: ${ADMIN_NAME:-Store Owner}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@themotogears.in}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       DB_CONNECTION: mysql
       DB_HOST: mysql
@@ -79,7 +77,7 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-no-reply@themotogears.in}
       # Payments
-      PAYMENT_DEMO_METHODS: ${PAYMENT_DEMO_METHODS:-true}
+      PAYMENT_DEMO_METHODS: ${PAYMENT_DEMO_METHODS:-false}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
@@ -94,7 +92,7 @@ services:
       args:
         # Where visitors' browsers call the API. Baked into the build — rebuild after changing it.
         # Production MUST set API_URL=https://api.themotogears.in/v1 in .env.
-        API_URL: ${API_URL:-http://localhost:8000/v1}
+        API_URL: ${API_URL:-https://api.themotogears.in/v1}
     restart: unless-stopped
     depends_on:
       - backend

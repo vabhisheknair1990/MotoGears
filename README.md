@@ -1,5 +1,11 @@
 # MotoGears — Automobile Parts & Accessories E-Commerce
 
+> **`production` branch — deployed to https://themotogears.in (API https://api.themotogears.in/v1).**
+> Defaults here are the live values: no demo data, debug off, demo payment methods off, phpMyAdmin off.
+> Server setup: `cp .env.example .env`, fill in `ADMIN_PASSWORD`, database passwords, mail and Razorpay
+> live keys, then `docker compose up -d --build` — see section 8. Develop on `main` and merge into
+> `production` to release. For running it on your own computer, use the `main` branch.
+
 A full-stack e-commerce platform for car and motorcycle parts with **exact vehicle fitment**
 (make → model → variant → year), a complete customer storefront and a role-based admin console.
 

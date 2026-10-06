@@ -18,6 +18,8 @@ for i in $(seq 1 60); do
 done
 
 php artisan config:clear >/dev/null
+# Drop cached storefront data from the previous version on every deploy.
+php artisan cache:clear >/dev/null 2>&1 || true
 php artisan migrate --force
 
 # First boot only (empty database):

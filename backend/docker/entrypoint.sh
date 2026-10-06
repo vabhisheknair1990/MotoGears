@@ -20,10 +20,19 @@ done
 php artisan config:clear >/dev/null
 php artisan migrate --force
 
-# Seed demo data only on first boot (when there are no products yet).
-if [ "$(php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo \Illuminate\Support\Facades\DB::table("products")->count();')" = "0" ]; then
-  echo "Seeding demo data..."
-  php artisan db:seed --force
+# First boot only (empty database):
+#   SEED_DEMO_DATA=true  (default, local) → full demo store: products, orders, customers, demo logins.
+#   SEED_DEMO_DATA=false (production)     → roles, settings, categories, brands, vehicles and the
+#                                            admin from ADMIN_EMAIL / ADMIN_PASSWORD — nothing fake.
+count() { php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo \Illuminate\Support\Facades\DB::table($argv[1])->count();' "$1"; }
+if [ "${SEED_DEMO_DATA:-true}" = "true" ]; then
+  if [ "$(count products)" = "0" ]; then
+    echo "Seeding demo data..."
+    php artisan db:seed --force
+  fi
+elif [ "$(count roles)" = "0" ]; then
+  echo "Setting up a fresh production store (no demo data)..."
+  php artisan db:seed --class=ProductionSeeder --force
 fi
 
 php artisan storage:link >/dev/null 2>&1 || true

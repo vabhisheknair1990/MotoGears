@@ -303,6 +303,11 @@ Backend tests run on in-memory SQLite (see `phpunit.xml`), so no MySQL is needed
 
 ## 8. Production (themotogears.in)
 
+**Branches:** `main` is development (localhost defaults, demo data). `production` is what the server runs —
+the same code with themotogears.in values as the defaults. Work happens on `main`; to release, merge
+`main` into `production` and on the server run `git pull && docker compose up -d --build`.
+
+
 The site and the API run on two hosts:
 
 | Host | Serves | Points to |
@@ -314,12 +319,14 @@ The site and the API run on two hosts:
 2. **Environment** — every setting in `docker-compose.yml` is read from the `.env` file next to it:
    ```bash
    cp .env.production.example .env
-   nano .env                      # set DB passwords, mail, Razorpay live keys
+   nano .env                      # set ADMIN_PASSWORD, DB passwords, mail, Razorpay live keys
    docker compose up -d --build   # rebuild the frontend whenever API_URL changes
    ```
    It sets `API_URL=https://api.themotogears.in/v1` (baked into the shop), `APP_URL=https://api.themotogears.in`,
    `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS=https://themotogears.in,https://www.themotogears.in`, `APP_ENV=production`,
    `APP_DEBUG=false`, keeps phpMyAdmin off and binds the ports to `127.0.0.1` so only the proxy can reach them.
+   With `SEED_DEMO_DATA=false` an empty database gets only roles, settings, categories, brands and vehicles plus
+   the super admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` — **no demo products, orders, customers or demo logins**.
    > **Database passwords** are applied only when the MySQL volume is first created. On a server that already
    > started with the defaults, either keep `DB_PASSWORD=motogears` / `DB_ROOT_PASSWORD=root` for now and change
    > them in MySQL later, or reset the demo database with `docker compose down -v` (deletes all data) before
@@ -345,6 +352,16 @@ The site and the API run on two hosts:
    ```
    Then certificates: `certbot --nginx -d themotogears.in -d www.themotogears.in -d api.themotogears.in`.
    Check: `https://api.themotogears.in/v1/settings` must return JSON (`{"success":true,…}`), not the shop page.
+**Admin accounts on the server** (run inside the backend container):
+```bash
+docker compose exec backend php artisan app:create-admin you@themotogears.in   # asks for a strong password
+docker compose exec backend php artisan app:set-password someone@themotogears.in
+docker compose exec backend php artisan app:remove-demo-staff                    # lock admin@example.com & co.
+```
+A server that was first started with demo data still has the demo logins (`admin@example.com` / `password`):
+create your own admin and run `app:remove-demo-staff`, or reset to a clean store with `docker compose down -v`
+(deletes all data) and start again with the production `.env`.
+
 4. **Razorpay webhook** — `https://api.themotogears.in/v1/webhooks/razorpay`.
 
 Old `/api/v1/...` and `/api/docs` addresses redirect to the new ones.

@@ -10,7 +10,7 @@ class BlogPostResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $full = $request->routeIs('*.blog.show') || $request->is('api/*/admin/*');
+        $full = $request->routeIs('*.blog.show') || $request->is('v1/admin/*');
 
         return [
             'id' => $this->id,

@@ -17,7 +17,7 @@ abstract class TestCase extends BaseTestCase
 {
     use RefreshDatabase;
 
-    protected const API = '/api/v1';
+    protected const API = '/v1';
 
     protected function setUp(): void
     {

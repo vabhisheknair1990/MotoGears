@@ -11,7 +11,7 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $isAdmin = $request->is('api/*/admin/*');
+        $isAdmin = $request->is('v1/admin/*');
 
         return [
             'id' => $this->id,

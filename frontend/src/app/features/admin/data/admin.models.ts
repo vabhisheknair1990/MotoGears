@@ -1,4 +1,4 @@
-/** Shapes returned by the Laravel admin API (/api/v1/admin). */
+/** Shapes returned by the Laravel admin API (/v1/admin). */
 import { Address, CustomerVehicle, Order, Product, ProductCard, Review, User } from '../../../core/models/api.models';
 
 export interface Option<T = string | number> { value: T; label: string; group?: string }

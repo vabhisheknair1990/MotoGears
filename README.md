@@ -8,13 +8,13 @@ A full-stack e-commerce platform for car and motorcycle parts with **exact vehic
 | Frontend | Angular 22 (standalone components, signals, zoneless, OnPush, reactive forms, functional guards & interceptors, lazy routes, Angular CDK) |
 | Backend  | Laravel 13 (PHP 8.3+), Sanctum bearer tokens, Form Requests, API Resources, Policies, Services, Events/Listeners, Notifications, Storage |
 | Database | MySQL 8 via Eloquent (SQLite also works for tests) |
-| API      | REST, versioned under `/api/v1`, `{ success, message, data, meta }` envelope, OpenAPI 3 docs |
+| API      | REST on its own host — `https://api.themotogears.in/v1`, `{ success, message, data, meta }` envelope, OpenAPI 3 docs |
 
 ```text
 automotive-shop/
 ├── docker-compose.yml     frontend + backend + mysql + phpmyadmin
 ├── frontend/              Angular 22 app (storefront at /, admin at /admin)
-└── backend/               Laravel REST API (/api/v1) + OpenAPI docs (/api/docs)
+└── backend/               Laravel REST API (/v1) + OpenAPI docs (/docs)
 ```
 
 Angular never talks to MySQL. Laravel is the single source of truth for prices, stock,
@@ -39,8 +39,8 @@ empty**, links storage and starts the scheduler.
 |------|-----|
 | Storefront | http://localhost:4200 |
 | Admin console | http://localhost:4200/admin |
-| REST API | http://localhost:8000/api/v1 |
-| API docs (Swagger UI) | http://localhost:8000/api/docs |
+| REST API | http://localhost:8000/v1 |
+| API docs (Swagger UI) | http://localhost:8000/docs |
 | phpMyAdmin | http://localhost:8090 (root / root) |
 | MySQL from the host | not published by default — use phpMyAdmin, or uncomment the `ports` lines under `mysql` in `docker-compose.yml` (db `automotive_shop`, user `motogears` / `motogears`) |
 
@@ -86,9 +86,9 @@ npm install
 ng serve                        # http://localhost:4200  (or: npm start)
 ```
 
-`src/environments/environment.ts` points at `http://localhost:8000/api/v1` for development.
-The production build (`ng build`) uses a relative `/api/v1` — serve it behind a reverse proxy, or set
-`apiUrl` in `environment.prod.ts` to your API domain and add the site origin to `CORS_ALLOWED_ORIGINS`.
+`src/environments/environment.ts` points at `http://localhost:8000/v1` for development.
+The production build (`ng build`) calls `https://api.themotogears.in/v1` (`environment.prod.ts`); the Docker
+build can override it with the `API_URL` build argument.
 
 ---
 
@@ -149,7 +149,7 @@ How it works (all amounts and checks are server-side):
 - Cancelling a paid order (customer or admin) refunds it through the Razorpay Refunds API; a failed refund
   is logged in the order timeline for manual handling.
 - **Webhook (recommended in production):** Dashboard → *Webhooks* → URL
-  `https://<your-domain>/api/v1/webhooks/razorpay`, events `payment.captured`, `payment.authorized`,
+  `https://api.themotogears.in/v1/webhooks/razorpay`, events `payment.captured`, `payment.authorized`,
   `payment.failed`, `order.paid`, and a secret you put in `RAZORPAY_WEBHOOK_SECRET`. It confirms orders even
   if the customer closes the browser before verification. Locally it needs a public tunnel (e.g. ngrok).
 - In production set `PAYMENT_DEMO_METHODS=false` to hide the simulated methods and use live `rzp_live_…` keys.
@@ -275,8 +275,8 @@ Uploaded files are deleted after 30 days (`IMPORT_KEEP_FILES_DAYS`); the history
 
 ## 6. API
 
-- Base URL: `http://localhost:8000/api/v1`
-- Docs: `http://localhost:8000/api/docs` (Swagger UI) — spec at `backend/public/docs/openapi.yaml`
+- Base URL: `https://api.themotogears.in/v1` (local: `http://localhost:8000/v1`)
+- Docs: `https://api.themotogears.in/docs` (local: `http://localhost:8000/docs`, Swagger UI) — spec at `backend/public/docs/openapi.yaml`
 - Auth: `POST /auth/login` (customer) or `POST /admin/auth/login` (staff) returns a token; send
   `Authorization: Bearer <token>`. Guest carts use the `X-Cart-Token` header returned by the cart API
   and merge into the account on login.
@@ -300,7 +300,43 @@ Backend tests run on in-memory SQLite (see `phpunit.xml`), so no MySQL is needed
 
 ---
 
-## 8. Production checklist
+## 8. Production (themotogears.in)
+
+The site and the API run on two hosts:
+
+| Host | Serves | Points to |
+|------|--------|-----------|
+| `themotogears.in` (+ `www.`) | Angular storefront & admin (static files) | the `frontend` container (port 80 inside) |
+| `api.themotogears.in` | Laravel API at `/v1`, docs at `/docs`, images at `/storage` | the `backend` container (port 8000 inside) |
+
+1. **DNS** — A/AAAA records for `themotogears.in`, `www.themotogears.in` and `api.themotogears.in` to the server.
+2. **Environment** — in the repo root `.env` (read by Docker Compose) set `API_URL=https://api.themotogears.in/v1`;
+   for the backend set:
+   ```
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_URL=https://api.themotogears.in
+   FRONTEND_URL=https://themotogears.in
+   CORS_ALLOWED_ORIGINS=https://themotogears.in,https://www.themotogears.in
+   ```
+   (In `docker-compose.yml` these are the `backend` service's `environment:` values — change them there or move
+   them to an env file.)
+3. **HTTPS reverse proxy** in front (nginx, Caddy, a load balancer…), e.g. nginx:
+   ```nginx
+   server { server_name themotogears.in www.themotogears.in;  location / { proxy_pass http://127.0.0.1:4200; } }
+   server { server_name api.themotogears.in;  client_max_body_size 20m;
+            location / { proxy_pass http://127.0.0.1:8000;
+                         proxy_set_header Host $host;
+                         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                         proxy_set_header X-Forwarded-Proto $scheme; } }
+   ```
+   plus certificates (e.g. `certbot --nginx -d themotogears.in -d www.themotogears.in -d api.themotogears.in`).
+   Keep `TRUSTED_PROXIES` set to the proxy's address so client IPs and HTTPS are detected correctly.
+4. **Razorpay webhook** — `https://api.themotogears.in/v1/webhooks/razorpay`.
+
+Old `/api/v1/...` and `/api/docs` addresses redirect to the new ones.
+
+### Production checklist
 
 - `APP_ENV=production`, `APP_DEBUG=false`, a real `APP_KEY`, HTTPS URLs in `APP_URL` / `FRONTEND_URL`.
 - Use live Razorpay keys, register the webhook and set `PAYMENT_DEMO_METHODS=false`.

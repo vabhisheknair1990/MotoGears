@@ -6,13 +6,20 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => response()->json([
     'name' => config('app.name').' API',
     'version' => 'v1',
-    'base_url' => url('/api/v1'),
-    'docs' => url('/api/docs'),
+    'base_url' => url('/v1'),
+    'docs' => url('/docs'),
     'health' => url('/up'),
 ]));
 
-Route::get('/api/docs', fn () => response()->file(public_path('docs/index.html')));
-Route::get('/api/docs/openapi.yaml', fn () => response()->file(public_path('docs/openapi.yaml'), ['Content-Type' => 'application/yaml']));
+Route::get('/docs', fn () => response()->file(public_path('docs/index.html')));
+Route::get('/docs/openapi.yaml', fn () => response()->file(public_path('docs/openapi.yaml'), ['Content-Type' => 'application/yaml']));
+// Old addresses from before the API moved to its own host root.
+Route::redirect('/api/docs', '/docs', 301);
+Route::get('/api/v1/{path?}', function (\Illuminate\Http\Request $request, ?string $path = null) {
+    $query = $request->getQueryString();
+
+    return redirect('/v1'.($path ? '/'.$path : '').($query ? '?'.$query : ''), 308);
+})->where('path', '.*');
 
 // Serves uploaded media when the public/storage symlink is unavailable (e.g. some Windows
 // bind mounts). With the symlink in place the web server serves these files directly.

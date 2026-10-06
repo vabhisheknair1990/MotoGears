@@ -23,7 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
-        apiPrefix: 'api',
+        // API lives at the root of its own host: https://api.themotogears.in/v1/...
+        apiPrefix: '',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -41,15 +42,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureAccountIsActive::class,
         ]);
         // Token-based API: never redirect unauthenticated API calls to a login page.
-        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('v1', 'v1/*') ? null : '/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
+        $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('v1', 'v1/*') || $request->expectsJson());
 
         $json = fn (string $message, int $status, array $extra = []) => response()->json(array_merge(['success' => false, 'message' => $message], $extra), $status);
 
         $exceptions->render(function (ValidationException $e, Request $request) use ($json) {
-            if ($request->is('api/*')) {
+            if ($request->is('v1', 'v1/*')) {
                 return $json($e->status === 422 ? 'Validation failed' : collect($e->errors())->flatten()->first(), $e->status, ['errors' => $e->errors()]);
             }
         });
@@ -57,17 +58,17 @@ return Application::configure(basePath: dirname(__DIR__))
             return $json($e->getMessage(), $e->status, $e->errors ? ['errors' => $e->errors] : []);
         });
         $exceptions->render(function (AuthenticationException $e, Request $request) use ($json) {
-            if ($request->is('api/*')) {
+            if ($request->is('v1', 'v1/*')) {
                 return $json('Unauthenticated. Please log in.', 401);
             }
         });
         $exceptions->render(function (AuthorizationException|AccessDeniedHttpException $e, Request $request) use ($json) {
-            if ($request->is('api/*')) {
+            if ($request->is('v1', 'v1/*')) {
                 return $json($e->getMessage() && $e->getMessage() !== 'This action is unauthorized.' ? $e->getMessage() : 'You are not allowed to perform this action.', 403);
             }
         });
         $exceptions->render(function (NotFoundHttpException $e, Request $request) use ($json) {
-            if ($request->is('api/*')) {
+            if ($request->is('v1', 'v1/*')) {
                 $prev = $e->getPrevious();
                 $message = $prev instanceof ModelNotFoundException
                     ? class_basename($prev->getModel()).' not found.'
@@ -77,13 +78,13 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) use ($json) {
-            if ($request->is('api/*')) {
+            if ($request->is('v1', 'v1/*')) {
                 return $json('Too many requests. Please slow down and try again shortly.', 429)
                     ->withHeaders($e->getHeaders());
             }
         });
         $exceptions->render(function (Throwable $e, Request $request) use ($json) {
-            if (! $request->is('api/*')) {
+            if (! $request->is('v1', 'v1/*')) {
                 return null;
             }
             if ($e instanceof HttpExceptionInterface) {

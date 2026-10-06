@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'storage/*'],
+    'paths' => ['v1', 'v1/*', 'storage/*'],
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 

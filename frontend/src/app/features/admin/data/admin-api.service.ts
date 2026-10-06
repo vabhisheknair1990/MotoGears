@@ -5,7 +5,7 @@ import { ApiEnvelope, Page } from '../../../core/models/api.models';
 import { Lookups } from './admin.models';
 
 /**
- * Thin typed wrapper around `/api/v1/admin/*`. Every call is authorised again by
+ * Thin typed wrapper around `/v1/admin/*` (api.themotogears.in). Every call is authorised again by
  * Laravel (Sanctum + role/permission middleware); the UI only hides what the
  * user cannot use.
  */

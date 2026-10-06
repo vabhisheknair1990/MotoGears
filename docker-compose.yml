@@ -1,7 +1,8 @@
 # MotoGears — full local stack: Angular (nginx) + Laravel API + MySQL 8 + phpMyAdmin.
 #   docker compose up --build
 # Storefront  http://localhost:4200     Admin  http://localhost:4200/admin
-# API         http://localhost:8000/api/v1   Docs  http://localhost:8000/api/docs
+# API         http://localhost:8000/v1       Docs  http://localhost:8000/docs
+# (production: https://themotogears.in + https://api.themotogears.in/v1)
 # phpMyAdmin  http://localhost:8090
 name: motogears
 
@@ -65,7 +66,11 @@ services:
       - backend-storage:/var/www/html/storage/app # uploaded images survive rebuilds
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Where the browser calls the API. Production builds default to https://api.themotogears.in/v1.
+        API_URL: ${API_URL:-http://localhost:8000/v1}
     restart: unless-stopped
     depends_on:
       - backend

@@ -5,7 +5,7 @@ info:
   description: 'REST API for the MotoGears automobile parts & accessories store (Laravel + Sanctum).
 
 
-    **Base URL:** `/api/v1` — future breaking changes will ship as `/api/v2`.
+    **Base URL:** `/v1` — future breaking changes will ship as `/api/v2`.
 
 
     **Response envelope:** every JSON response is `{ success, message, data, meta? }`. Paginated endpoints return `meta.current_page`, `last_page`,
@@ -22,8 +22,10 @@ info:
 
     **Demo credentials:** admin@example.com / password · customer@example.com / password'
 servers:
+- url: https://api.themotogears.in
+  description: Production
 - url: http://localhost:8000
-  description: Local
+  description: Local (Docker)
 tags:
 - name: Authentication
   description: Customer & admin login, registration, password reset (Laravel Sanctum bearer tokens).
@@ -1509,7 +1511,7 @@ components:
             success: false
             message: Too many requests. Please slow down and try again shortly.
 paths:
-  /api/v1:
+  /v1:
     get:
       tags:
       - CMS
@@ -1553,13 +1555,13 @@ paths:
                 success: true
                 message: Laravel API v1
                 data:
-                  docs: http://127.0.0.1:8000/api/docs
-                  openapi: http://127.0.0.1:8000/api/docs/openapi.yaml
+                  docs: http://127.0.0.1:8000/docs
+                  openapi: http://127.0.0.1:8000/docs/openapi.yaml
                   health: http://127.0.0.1:8000/up
                   examples:
-                  - http://127.0.0.1:8000/api/v1/homepage
-                  - http://127.0.0.1:8000/api/v1/products
-  /api/v1/admin/attributes:
+                  - http://127.0.0.1:8000/v1/homepage
+                  - http://127.0.0.1:8000/v1/products
+  /v1/admin/attributes:
     get:
       tags:
       - Admin · Catalog
@@ -1728,7 +1730,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/attributes/{attribute}:
+  /v1/admin/attributes/{attribute}:
     put:
       tags:
       - Admin · Catalog
@@ -1823,7 +1825,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/audit-logs:
+  /v1/admin/audit-logs:
     get:
       tags:
       - Admin · System
@@ -1916,7 +1918,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/auth/login:
+  /v1/admin/auth/login:
     post:
       tags:
       - Admin
@@ -1959,7 +1961,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/admin/auth/logout:
+  /v1/admin/auth/logout:
     post:
       tags:
       - Admin
@@ -1994,7 +1996,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/admin/auth/me:
+  /v1/admin/auth/me:
     get:
       tags:
       - Admin
@@ -2102,7 +2104,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/admin/banners:
+  /v1/admin/banners:
     get:
       tags:
       - Admin · CMS
@@ -2260,7 +2262,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/banners/{banner}:
+  /v1/admin/banners/{banner}:
     get:
       tags:
       - Admin · CMS
@@ -2490,7 +2492,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/blog:
+  /v1/admin/blog:
     get:
       tags:
       - Admin · CMS
@@ -2676,7 +2678,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/blog-categories:
+  /v1/admin/blog-categories:
     get:
       tags:
       - Admin · CMS
@@ -2795,7 +2797,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/blog-categories/{id}:
+  /v1/admin/blog-categories/{id}:
     get:
       tags:
       - Admin · CMS
@@ -3005,7 +3007,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/blog/{blog}:
+  /v1/admin/blog/{blog}:
     get:
       tags:
       - Admin · CMS
@@ -3269,7 +3271,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/brands:
+  /v1/admin/brands:
     get:
       tags:
       - Admin · Catalog
@@ -3423,7 +3425,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/brands/{brand}:
+  /v1/admin/brands/{brand}:
     get:
       tags:
       - Admin · Catalog
@@ -3648,7 +3650,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/categories:
+  /v1/admin/categories:
     get:
       tags:
       - Admin · Catalog
@@ -3838,7 +3840,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/categories/{category}:
+  /v1/admin/categories/{category}:
     get:
       tags:
       - Admin · Catalog
@@ -4129,7 +4131,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/contact-messages:
+  /v1/admin/contact-messages:
     get:
       tags:
       - Admin · CMS
@@ -4222,7 +4224,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/contact-messages/{id}:
+  /v1/admin/contact-messages/{id}:
     get:
       tags:
       - Admin · CMS
@@ -4447,7 +4449,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/coupons:
+  /v1/admin/coupons:
     get:
       tags:
       - Coupons
@@ -4657,7 +4659,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/coupons/{coupon}:
+  /v1/admin/coupons/{coupon}:
     get:
       tags:
       - Coupons
@@ -4911,7 +4913,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/customers:
+  /v1/admin/customers:
     get:
       tags:
       - Admin · Customers
@@ -5006,7 +5008,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/customers/{id}:
+  /v1/admin/customers/{id}:
     get:
       tags:
       - Admin · Customers
@@ -5696,7 +5698,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/dashboard:
+  /v1/admin/dashboard:
     get:
       tags:
       - Admin
@@ -5858,7 +5860,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/faqs:
+  /v1/admin/faqs:
     get:
       tags:
       - Admin · CMS
@@ -5993,7 +5995,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/faqs/{id}:
+  /v1/admin/faqs/{id}:
     get:
       tags:
       - Admin · CMS
@@ -6222,7 +6224,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/inventory:
+  /v1/admin/inventory:
     get:
       tags:
       - Inventory
@@ -6331,7 +6333,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/inventory/transactions:
+  /v1/admin/inventory/transactions:
     get:
       tags:
       - Inventory
@@ -6483,7 +6485,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/inventory/{inventory}:
+  /v1/admin/inventory/{inventory}:
     get:
       tags:
       - Inventory
@@ -6744,7 +6746,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/inventory/{inventory}/adjust:
+  /v1/admin/inventory/{inventory}/adjust:
     post:
       tags:
       - Inventory
@@ -6806,7 +6808,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/lookups:
+  /v1/admin/lookups:
     get:
       tags:
       - Admin
@@ -7020,7 +7022,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/newsletter-subscribers:
+  /v1/admin/newsletter-subscribers:
     get:
       tags:
       - Admin · CMS
@@ -7139,7 +7141,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/newsletter-subscribers/export:
+  /v1/admin/newsletter-subscribers/export:
     get:
       tags:
       - Admin · CMS
@@ -7158,7 +7160,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/newsletter-subscribers/{id}:
+  /v1/admin/newsletter-subscribers/{id}:
     get:
       tags:
       - Admin · CMS
@@ -7368,7 +7370,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/notifications:
+  /v1/admin/notifications:
     get:
       tags:
       - Admin
@@ -7466,7 +7468,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/notifications/read:
+  /v1/admin/notifications/read:
     post:
       tags:
       - Admin
@@ -7511,7 +7513,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/orders:
+  /v1/admin/orders:
     get:
       tags:
       - Admin · Orders
@@ -7902,7 +7904,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/orders/{order}:
+  /v1/admin/orders/{order}:
     get:
       tags:
       - Admin · Orders
@@ -8372,7 +8374,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/orders/{order}/invoice:
+  /v1/admin/orders/{order}/invoice:
     get:
       tags:
       - Admin · Orders
@@ -8615,7 +8617,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/orders/{order}/invoice/download:
+  /v1/admin/orders/{order}/invoice/download:
     get:
       tags:
       - Admin · Orders
@@ -8642,7 +8644,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/orders/{order}/status:
+  /v1/admin/orders/{order}/status:
     patch:
       tags:
       - Admin · Orders
@@ -8707,7 +8709,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/pages:
+  /v1/admin/pages:
     get:
       tags:
       - Admin · CMS
@@ -8847,7 +8849,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/pages/{id}:
+  /v1/admin/pages/{id}:
     get:
       tags:
       - Admin · CMS
@@ -9075,7 +9077,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/product-imports:
+  /v1/admin/product-imports:
     get:
       tags:
       - Admin · Import
@@ -9357,7 +9359,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/product-imports/columns:
+  /v1/admin/product-imports/columns:
     get:
       tags:
       - Admin · Import
@@ -9424,7 +9426,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/product-imports/template:
+  /v1/admin/product-imports/template:
     get:
       tags:
       - Admin · Import
@@ -9447,7 +9449,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/product-imports/{productImport}:
+  /v1/admin/product-imports/{productImport}:
     get:
       tags:
       - Admin · Import
@@ -9529,7 +9531,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/product-imports/{productImport}/cancel:
+  /v1/admin/product-imports/{productImport}/cancel:
     post:
       tags:
       - Admin · Import
@@ -9572,7 +9574,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/product-imports/{productImport}/file:
+  /v1/admin/product-imports/{productImport}/file:
     get:
       tags:
       - Admin · Import
@@ -9612,7 +9614,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/product-imports/{productImport}/report:
+  /v1/admin/product-imports/{productImport}/report:
     get:
       tags:
       - Admin · Import
@@ -9641,7 +9643,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/product-imports/{productImport}/start:
+  /v1/admin/product-imports/{productImport}/start:
     post:
       tags:
       - Admin · Import
@@ -9684,7 +9686,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/products:
+  /v1/admin/products:
     get:
       tags:
       - Admin · Catalog
@@ -10083,7 +10085,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/products/{id}:
+  /v1/admin/products/{id}:
     get:
       tags:
       - Admin · Catalog
@@ -10473,7 +10475,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/products/{id}/restore:
+  /v1/admin/products/{id}/restore:
     post:
       tags:
       - Admin · Catalog
@@ -10514,7 +10516,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/products/{product}:
+  /v1/admin/products/{product}:
     put:
       tags:
       - Admin · Catalog
@@ -10661,7 +10663,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/products/{product}/compatibilities:
+  /v1/admin/products/{product}/compatibilities:
     get:
       tags:
       - Admin · Catalog
@@ -10824,7 +10826,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/products/{product}/images:
+  /v1/admin/products/{product}/images:
     post:
       tags:
       - Admin · Catalog
@@ -10879,7 +10881,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/products/{product}/images/reorder:
+  /v1/admin/products/{product}/images/reorder:
     put:
       tags:
       - Admin · Catalog
@@ -10936,7 +10938,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/products/{product}/images/{image}:
+  /v1/admin/products/{product}/images/{image}:
     patch:
       tags:
       - Admin · Catalog
@@ -11039,7 +11041,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/products/{product}/toggle:
+  /v1/admin/products/{product}/toggle:
     patch:
       tags:
       - Admin · Catalog
@@ -11091,7 +11093,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reports/customers:
+  /v1/admin/reports/customers:
     get:
       tags:
       - Reports
@@ -11215,7 +11217,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reports/inventory:
+  /v1/admin/reports/inventory:
     get:
       tags:
       - Reports
@@ -11409,7 +11411,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reports/products:
+  /v1/admin/reports/products:
     get:
       tags:
       - Reports
@@ -11591,7 +11593,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reports/sales:
+  /v1/admin/reports/sales:
     get:
       tags:
       - Reports
@@ -11744,7 +11746,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reviews:
+  /v1/admin/reviews:
     get:
       tags:
       - Admin · Reviews
@@ -11902,7 +11904,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reviews/bulk:
+  /v1/admin/reviews/bulk:
     post:
       tags:
       - Admin · Reviews
@@ -11954,7 +11956,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/reviews/{review}:
+  /v1/admin/reviews/{review}:
     patch:
       tags:
       - Admin · Reviews
@@ -12047,7 +12049,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/roles:
+  /v1/admin/roles:
     get:
       tags:
       - Admin · System
@@ -12309,7 +12311,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/admin/roles/{role}:
+  /v1/admin/roles/{role}:
     put:
       tags:
       - Admin · System
@@ -12365,7 +12367,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/settings:
+  /v1/admin/settings:
     get:
       tags:
       - Admin · System
@@ -12550,7 +12552,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/staff:
+  /v1/admin/staff:
     get:
       tags:
       - Admin · System
@@ -12726,7 +12728,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/staff/{user}:
+  /v1/admin/staff/{user}:
     put:
       tags:
       - Admin · System
@@ -12875,7 +12877,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/testimonials:
+  /v1/admin/testimonials:
     get:
       tags:
       - Admin · CMS
@@ -13022,7 +13024,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/testimonials/{id}:
+  /v1/admin/testimonials/{id}:
     get:
       tags:
       - Admin · CMS
@@ -13268,7 +13270,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/vehicles/manufacturers:
+  /v1/admin/vehicles/manufacturers:
     get:
       tags:
       - Admin · Vehicles
@@ -13392,7 +13394,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/vehicles/manufacturers/{manufacturer}:
+  /v1/admin/vehicles/manufacturers/{manufacturer}:
     put:
       tags:
       - Admin · Vehicles
@@ -13533,7 +13535,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/vehicles/models:
+  /v1/admin/vehicles/models:
     get:
       tags:
       - Admin · Vehicles
@@ -13685,7 +13687,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/vehicles/models/{model}:
+  /v1/admin/vehicles/models/{model}:
     put:
       tags:
       - Admin · Vehicles
@@ -13826,7 +13828,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/vehicles/variants:
+  /v1/admin/vehicles/variants:
     get:
       tags:
       - Admin · Vehicles
@@ -14025,7 +14027,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/admin/vehicles/variants/{variant}:
+  /v1/admin/vehicles/variants/{variant}:
     put:
       tags:
       - Admin · Vehicles
@@ -14166,7 +14168,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/auth/forgot-password:
+  /v1/auth/forgot-password:
     post:
       tags:
       - Authentication
@@ -14206,7 +14208,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/auth/login:
+  /v1/auth/login:
     post:
       tags:
       - Authentication
@@ -14275,7 +14277,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/auth/logout:
+  /v1/auth/logout:
     post:
       tags:
       - Authentication
@@ -14308,7 +14310,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/auth/register:
+  /v1/auth/register:
     post:
       tags:
       - Authentication
@@ -14364,7 +14366,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/auth/reset-password:
+  /v1/auth/reset-password:
     post:
       tags:
       - Authentication
@@ -14413,7 +14415,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/banners:
+  /v1/banners:
     get:
       tags:
       - CMS
@@ -14485,7 +14487,7 @@ paths:
                   sort_order: 1
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/blog:
+  /v1/blog:
     get:
       tags:
       - CMS
@@ -14625,7 +14627,7 @@ paths:
                     posts_count: 3
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/blog/{slug}:
+  /v1/blog/{slug}:
     get:
       tags:
       - CMS
@@ -14812,7 +14814,7 @@ paths:
                     created_at: '2026-09-26T12:39:04+05:30'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/brands:
+  /v1/brands:
     get:
       tags:
       - Brands
@@ -14869,7 +14871,7 @@ paths:
                   is_featured: true
                   sort_order: 1
                   products_count: 5
-  /api/v1/brands/{slug}:
+  /v1/brands/{slug}:
     get:
       tags:
       - Brands
@@ -14948,7 +14950,7 @@ paths:
                   products_count: 34
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/cart:
+  /v1/cart:
     get:
       tags:
       - Cart
@@ -15028,7 +15030,7 @@ paths:
                     type: string
                   data:
                     nullable: true
-  /api/v1/cart/apply-coupon:
+  /v1/cart/apply-coupon:
     post:
       tags:
       - Cart
@@ -15070,7 +15072,7 @@ paths:
                     nullable: true
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/cart/coupon:
+  /v1/cart/coupon:
     delete:
       tags:
       - Cart
@@ -15099,7 +15101,7 @@ paths:
                     type: string
                   data:
                     nullable: true
-  /api/v1/cart/items:
+  /v1/cart/items:
     post:
       tags:
       - Cart
@@ -15207,7 +15209,7 @@ paths:
                   is_checkout_ready: true
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/cart/items/{item}:
+  /v1/cart/items/{item}:
     patch:
       tags:
       - Cart
@@ -15293,7 +15295,7 @@ paths:
                     nullable: true
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/cart/shipping:
+  /v1/cart/shipping:
     put:
       tags:
       - Cart
@@ -15335,7 +15337,7 @@ paths:
                     nullable: true
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/categories:
+  /v1/categories:
     get:
       tags:
       - Categories
@@ -15414,7 +15416,7 @@ paths:
                     collection:
                       __PHP_Incomplete_Class_Name: Illuminate\Support\Collection
                     preserveKeys: false
-  /api/v1/categories/{slug}:
+  /v1/categories/{slug}:
     get:
       tags:
       - Categories
@@ -15523,7 +15525,7 @@ paths:
                     slug: brake-system
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/checkout:
+  /v1/checkout:
     get:
       tags:
       - Checkout
@@ -15737,7 +15739,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/contact:
+  /v1/contact:
     post:
       tags:
       - CMS
@@ -15790,7 +15792,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/faqs:
+  /v1/faqs:
     get:
       tags:
       - CMS
@@ -15860,7 +15862,7 @@ paths:
                     category: Payments
                     question: Is Cash on Delivery available everywhere?
                     answer: COD is available across most serviceable PIN codes for orders up to ₹50,000.
-  /api/v1/homepage:
+  /v1/homepage:
     get:
       tags:
       - Homepage
@@ -16885,7 +16887,7 @@ paths:
                       available_stock: 54
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/me:
+  /v1/me:
     get:
       tags:
       - Customers
@@ -16979,7 +16981,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/me/addresses:
+  /v1/me/addresses:
     get:
       tags:
       - Customers
@@ -17109,7 +17111,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/me/addresses/{address}:
+  /v1/me/addresses/{address}:
     patch:
       tags:
       - Customers
@@ -17198,7 +17200,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/me/dashboard:
+  /v1/me/dashboard:
     get:
       tags:
       - Customers
@@ -17688,7 +17690,7 @@ paths:
                     created_at: '2026-09-26T12:38:58+05:30'
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /api/v1/me/notifications:
+  /v1/me/notifications:
     get:
       tags:
       - Customers
@@ -17788,7 +17790,7 @@ paths:
                   unread: 14
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /api/v1/me/notifications/read:
+  /v1/me/notifications/read:
     post:
       tags:
       - Customers
@@ -17831,7 +17833,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/me/orders:
+  /v1/me/orders:
     get:
       tags:
       - Orders
@@ -18092,7 +18094,7 @@ paths:
                   to: 1
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /api/v1/me/password:
+  /v1/me/password:
     put:
       tags:
       - Customers
@@ -18140,7 +18142,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/me/reviews:
+  /v1/me/reviews:
     get:
       tags:
       - Reviews
@@ -18253,7 +18255,7 @@ paths:
                   to: 10
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /api/v1/me/reviews/{review}:
+  /v1/me/reviews/{review}:
     delete:
       tags:
       - Reviews
@@ -18290,7 +18292,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/me/vehicles:
+  /v1/me/vehicles:
     get:
       tags:
       - Customers
@@ -18432,7 +18434,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/me/vehicles/{vehicle}:
+  /v1/me/vehicles/{vehicle}:
     patch:
       tags:
       - Customers
@@ -18518,7 +18520,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/newsletter:
+  /v1/newsletter:
     post:
       tags:
       - CMS
@@ -18558,7 +18560,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/orders:
+  /v1/orders:
     get:
       tags:
       - Orders
@@ -18929,7 +18931,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/orders/{order}:
+  /v1/orders/{order}:
     get:
       tags:
       - Orders
@@ -19063,7 +19065,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/orders/{order}/cancel:
+  /v1/orders/{order}/cancel:
     post:
       tags:
       - Orders
@@ -19115,7 +19117,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/orders/{order}/invoice:
+  /v1/orders/{order}/invoice:
     get:
       tags:
       - Orders
@@ -19218,7 +19220,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/orders/{order}/invoice/download:
+  /v1/orders/{order}/invoice/download:
     get:
       tags:
       - Orders
@@ -19246,7 +19248,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/orders/{order}/pay:
+  /v1/orders/{order}/pay:
     post:
       tags:
       - Orders
@@ -19303,7 +19305,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/orders/{order}/razorpay/failed:
+  /v1/orders/{order}/razorpay/failed:
     post:
       tags:
       - Orders
@@ -19359,7 +19361,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/orders/{order}/razorpay/verify:
+  /v1/orders/{order}/razorpay/verify:
     post:
       tags:
       - Orders
@@ -19419,7 +19421,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/pages/{slug}:
+  /v1/pages/{slug}:
     get:
       tags:
       - CMS
@@ -19478,7 +19480,7 @@ paths:
                     were tired of guessing whether a part wou...
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/products:
+  /v1/products:
     get:
       tags:
       - Products
@@ -19736,7 +19738,7 @@ paths:
                     year_range: 2020–present
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/products/filters:
+  /v1/products/filters:
     get:
       tags:
       - Products
@@ -19887,7 +19889,7 @@ paths:
                     label: Relevance
                   - value: popular
                     label: Most popular
-  /api/v1/products/{product}/check-compatibility:
+  /v1/products/{product}/check-compatibility:
     get:
       tags:
       - Products
@@ -19948,7 +19950,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/products/{product}/compatibility:
+  /v1/products/{product}/compatibility:
     get:
       tags:
       - Products
@@ -20069,7 +20071,7 @@ paths:
                       - 2020–present
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/products/{product}/related:
+  /v1/products/{product}/related:
     get:
       tags:
       - Products
@@ -20212,7 +20214,7 @@ paths:
                   available_stock: 145
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/products/{product}/reviews:
+  /v1/products/{product}/reviews:
     get:
       tags:
       - Reviews
@@ -20367,7 +20369,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/products/{slug}:
+  /v1/products/{slug}:
     get:
       tags:
       - Products
@@ -20518,7 +20520,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/search:
+  /v1/search:
     get:
       tags:
       - Search
@@ -20699,7 +20701,7 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /api/v1/search/popular:
+  /v1/search/popular:
     get:
       tags:
       - Search
@@ -20732,7 +20734,7 @@ paths:
                 data:
                 - thar led
                 - brake pads
-  /api/v1/search/suggestions:
+  /v1/search/suggestions:
     get:
       tags:
       - Search
@@ -20912,7 +20914,7 @@ paths:
                   - thar led
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/settings:
+  /v1/settings:
     get:
       tags:
       - CMS
@@ -20990,7 +20992,7 @@ paths:
                   - code: demo_card
                     label: Card (Demo)
                     description: Simulated card payment. Use 4111 1111 1111 1111 for success, 4000 0000 0000 0002 to simulate a decline.
-  /api/v1/vehicles/manufacturers:
+  /v1/vehicles/manufacturers:
     get:
       tags:
       - Vehicles
@@ -21071,7 +21073,7 @@ paths:
                   models_count: 3
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/vehicles/models:
+  /v1/vehicles/models:
     get:
       tags:
       - Vehicles
@@ -21148,7 +21150,7 @@ paths:
                   variants_count: 5
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/vehicles/variants:
+  /v1/vehicles/variants:
     get:
       tags:
       - Vehicles
@@ -21216,7 +21218,7 @@ paths:
                   is_active: true
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/vehicles/variants/{variant}:
+  /v1/vehicles/variants/{variant}:
     get:
       tags:
       - Vehicles
@@ -21316,7 +21318,7 @@ paths:
                   full_name: Mahindra Thar 2.0 Petrol AT
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/vehicles/years:
+  /v1/vehicles/years:
     get:
       tags:
       - Vehicles
@@ -21358,7 +21360,7 @@ paths:
                 - 2025
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/webhooks/razorpay:
+  /v1/webhooks/razorpay:
     post:
       tags:
       - Payments
@@ -21426,7 +21428,7 @@ paths:
                     nullable: true
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/wishlist:
+  /v1/wishlist:
     get:
       tags:
       - Wishlist
@@ -21564,7 +21566,7 @@ paths:
                   - 74
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /api/v1/wishlist/items:
+  /v1/wishlist/items:
     post:
       tags:
       - Wishlist
@@ -21606,7 +21608,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /api/v1/wishlist/items/{product}:
+  /v1/wishlist/items/{product}:
     delete:
       tags:
       - Wishlist
@@ -21643,7 +21645,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/wishlist/items/{product}/move-to-cart:
+  /v1/wishlist/items/{product}/move-to-cart:
     post:
       tags:
       - Wishlist

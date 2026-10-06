@@ -11,7 +11,7 @@ class ReviewResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $isAdmin = $request->is('api/*/admin/*');
+        $isAdmin = $request->is('v1/admin/*');
         $author = $this->user?->name ?? 'Customer';
 
         return [

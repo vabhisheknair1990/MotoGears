@@ -9,15 +9,15 @@ use Illuminate\Support\Facades\Route;
 | Public storefront
 |--------------------------------------------------------------------------
 */
-// API root: a small index so opening /api/v1 in a browser shows where to go instead of a 404.
+// API root: a small index so opening /v1 in a browser shows where to go instead of a 404.
 Route::get('/', fn () => response()->json([
     'success' => true,
     'message' => config('app.name').' API v1',
     'data' => [
-        'docs' => url('/api/docs'),
-        'openapi' => url('/api/docs/openapi.yaml'),
+        'docs' => url('/docs'),
+        'openapi' => url('/docs/openapi.yaml'),
         'health' => url('/up'),
-        'examples' => [url('/api/v1/homepage'), url('/api/v1/products'), url('/api/v1/categories')],
+        'examples' => [url('/v1/homepage'), url('/v1/products'), url('/v1/categories')],
     ],
 ]))->name('root');
 

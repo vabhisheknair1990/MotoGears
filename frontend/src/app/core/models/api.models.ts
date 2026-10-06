@@ -1,4 +1,4 @@
-/** Shapes returned by the Laravel REST API (/api/v1). */
+/** Shapes returned by the Laravel REST API (https://api.themotogears.in/v1). */
 
 export interface ApiEnvelope<T> {
   success: boolean;

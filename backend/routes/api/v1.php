@@ -45,6 +45,24 @@ Route::get('products/{product}/related', [V1\ProductController::class, 'related'
 Route::get('products/{product}/reviews', [V1\ReviewController::class, 'index'])->whereNumber('product')->name('products.reviews');
 Route::get('products/{slug}', [V1\ProductController::class, 'show'])->name('products.show');
 
+// Guest checkout & orders (no account). Access to an order needs its secret token.
+Route::prefix('guest')->name('guest.')->group(function () {
+    Route::get('checkout', [V1\CheckoutController::class, 'guest'])->name('checkout');
+    Route::post('orders', [V1\GuestOrderController::class, 'store'])->middleware('throttle:checkout')->name('orders.store');
+    Route::post('orders/track', [V1\GuestOrderController::class, 'track'])->middleware('throttle:track')->name('orders.track');
+    Route::prefix('orders/{order}')->name('orders.')->middleware('throttle:guest-orders')->group(function () {
+        Route::get('/', [V1\GuestOrderController::class, 'show'])->name('show');
+        Route::post('cancel', [V1\GuestOrderController::class, 'cancel'])->name('cancel');
+        Route::post('pay', [V1\GuestOrderController::class, 'pay'])->middleware('throttle:checkout')->name('pay');
+        Route::post('razorpay/verify', [V1\GuestOrderController::class, 'razorpayVerify'])->middleware('throttle:checkout')->name('razorpay.verify');
+        Route::post('razorpay/failed', [V1\GuestOrderController::class, 'razorpayFailed'])->middleware('throttle:checkout')->name('razorpay.failed');
+        Route::get('invoice', [V1\GuestOrderController::class, 'invoice'])->name('invoice');
+        Route::get('invoice/download', [V1\GuestOrderController::class, 'downloadInvoice'])->name('invoice.download');
+        Route::post('create-account', [V1\GuestOrderController::class, 'createAccount'])->middleware('throttle:auth')->name('create-account');
+        Route::post('attach', [V1\GuestOrderController::class, 'attach'])->middleware('auth:sanctum')->name('attach');
+    });
+});
+
 Route::middleware('throttle:search')->group(function () {
     Route::get('search', [V1\SearchController::class, 'search'])->name('search');
     Route::get('search/suggestions', [V1\SearchController::class, 'suggestions'])->name('search.suggestions');

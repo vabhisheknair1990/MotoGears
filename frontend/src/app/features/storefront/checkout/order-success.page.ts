@@ -5,6 +5,9 @@ import { RouterLink } from '@angular/router';
 import { catchError, of, switchMap } from 'rxjs';
 import { OnlinePaymentCode, Order } from '../../../core/models/api.models';
 import { CmsService } from '../../../core/services/cms.service';
+import { GuestOrdersService } from '../../../core/services/guest-orders.service';
+import { AuthStore } from '../../../core/state/auth.store';
+import { GuestAccountCardComponent } from '../../../shared/components/guest-account-card.component';
 import { RazorpayService } from '../../../core/services/razorpay.service';
 import { OrderService } from '../../../core/services/order.service';
 import { SeoService } from '../../../core/services/seo.service';
@@ -17,13 +20,19 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
 
 @Component({
   selector: 'app-order-success-page',
-  imports: [RouterLink, FormsModule, IconComponent, EmptyStateComponent, OrderTimelineComponent, InrPipe, AppDatePipe],
+  imports: [RouterLink, FormsModule, IconComponent, EmptyStateComponent, OrderTimelineComponent, GuestAccountCardComponent, InrPipe, AppDatePipe],
   template: `
     <div class="container narrow">
       @if (loading()) {
         <div class="skeleton" style="height: 320px; margin-top: 32px"></div>
       } @else if (!order()) {
-        <app-empty-state icon="package" title="Order not found" message="We couldn't find that order on your account."><a class="btn btn-primary" routerLink="/account/orders">My orders</a></app-empty-state>
+        @if (auth.isLoggedIn()) {
+          <app-empty-state icon="package" title="Order not found" message="We couldn't find that order on your account."><a class="btn btn-primary" routerLink="/account/orders">My orders</a></app-empty-state>
+        } @else {
+          <app-empty-state icon="package" title="Order not found" message="Open the link in your order confirmation email, or find the order with its number and your email.">
+            <a class="btn btn-primary" routerLink="/track-order" [queryParams]="{ order: orderNumber() }">Track order</a>
+          </app-empty-state>
+        }
       } @else {
         @let o = order()!;
         @if (needsPayment()) {
@@ -59,7 +68,7 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
             }
             @if (retryError()) { <div class="alert alert-danger mt-16">{{ retryError() }}</div> }
             <div class="row end mt-16">
-              <a class="btn" [routerLink]="['/account/orders', o.id]">View order</a>
+              <a class="btn" [routerLink]="orderLink(o)" [queryParams]="orderQuery()">View order</a>
               <button class="btn btn-primary" (click)="retry()" [disabled]="paying() || !method()">@if (paying()) { <span class="spinner"></span> } Pay {{ o.grand_total | inr }}</button>
             </div>
           </div>
@@ -68,6 +77,9 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
             <div class="ic ok"><app-icon name="check" [size]="40" [stroke]="3" /></div>
             <h1>Thank you! Your order is confirmed.</h1>
             <p>Order <strong class="mono">{{ o.order_number }}</strong> · placed {{ o.placed_at | appDate: true }}</p>
+            @if (o.is_guest && o.customer?.email; as email) {
+              <p class="text-sm">We've emailed your confirmation and a private link to this order to <strong>{{ email }}</strong>.</p>
+            }
             <p class="text-sm">{{ o.payment_method === 'cod' ? 'Please keep ' + (o.grand_total | inr) + ' ready for cash on delivery.' : 'Payment received — ' + (o.payment?.transaction_id ?? '') }}</p>
           </div>
           <div class="grid md-grid-2 gap-16">
@@ -88,10 +100,17 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
             </div>
           </div>
           <div class="row center wrap mt-24">
-            <a class="btn btn-primary" [routerLink]="['/account/orders', o.id]">Track order</a>
-            <a class="btn" [routerLink]="['/invoice', o.id]">View invoice</a>
+            <a class="btn btn-primary" [routerLink]="orderLink(o)" [queryParams]="orderQuery()">Track order</a>
+            @if (token()) {
+              <a class="btn" [routerLink]="['/order', o.order_number]" [queryParams]="orderQuery()">Order details &amp; invoice</a>
+            } @else {
+              <a class="btn" [routerLink]="['/invoice', o.id]">View invoice</a>
+            }
             <a class="btn btn-ghost" routerLink="/shop">Continue shopping</a>
           </div>
+          @if (o.is_guest && token()) {
+            <div class="mt-24"><app-guest-account-card [order]="o" [token]="token()!" (attached)="order.set($event)" /></div>
+          }
         }
       }
     </div>
@@ -112,8 +131,13 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
 })
 export class OrderSuccessPage {
   private readonly orders = inject(OrderService);
+  private readonly guestOrders = inject(GuestOrdersService);
+  protected readonly auth = inject(AuthStore);
   private readonly toast = inject(ToastService);
   readonly orderNumber = input.required<string>();
+  readonly tokenParam = input<string | undefined>(undefined, { alias: 'token' });
+  /** Guest orders: the secret token from the URL, or remembered from checkout on this device. */
+  protected readonly token = computed(() => this.tokenParam() || this.guestOrders.tokenFor(this.orderNumber()) || null);
   readonly paymentParam = input<string | undefined>(undefined, { alias: 'payment' });
 
   protected readonly order = signal<Order | null>(null);
@@ -146,9 +170,22 @@ export class OrderSuccessPage {
   constructor() {
     inject(SeoService).set({ title: 'Order confirmation' });
     toObservable(this.orderNumber).pipe(
-      switchMap((n) => this.orders.getOrder(n).pipe(catchError(() => of(null)))),
+      switchMap((n) => {
+        const token = this.token();
+        if (token) return this.guestOrders.get(n, token).pipe(catchError(() => of(null)));
+        return this.auth.isLoggedIn() ? this.orders.getOrder(n).pipe(catchError(() => of(null))) : of(null);
+      }),
       takeUntilDestroyed(),
     ).subscribe((o) => { this.order.set(o); this.loading.set(false); });
+  }
+
+  protected orderLink(o: Order): (string | number)[] {
+    return this.token() ? ['/order', o.order_number] : ['/account/orders', o.id];
+  }
+
+  protected orderQuery(): Record<string, string> | null {
+    const t = this.token();
+    return t ? { token: t } : null;
   }
 
   retry(): void {
@@ -160,11 +197,13 @@ export class OrderSuccessPage {
     const details: Record<string, string> | null = method === 'demo_card'
       ? { card_number: this.cardNumber, card_name: o.shipping_address.name, expiry: this.expiry, cvv: this.cvv }
       : method === 'demo_upi' ? { upi_id: this.upiId } : null;
-    this.orders.pay(o.id, method, details).subscribe({
+    const token = this.token();
+    const guest = token ? { number: o.order_number, token } : undefined;
+    (guest ? this.guestOrders.pay(guest.number, guest.token, method, details) : this.orders.pay(o.id, method, details)).subscribe({
       next: (r) => {
         this.order.set(r.result.order);
         if (r.result.razorpay) {
-          this.razorpay.checkout(o.id, r.result.razorpay).then(
+          this.razorpay.checkout(o.id, r.result.razorpay, guest).then(
             (outcome) => {
               this.paying.set(false);
               if (outcome.status === 'paid') {

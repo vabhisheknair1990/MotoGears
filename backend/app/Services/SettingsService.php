@@ -22,6 +22,7 @@ class SettingsService
         'cod_max_order_value' => 50000,
         'unpaid_order_timeout_minutes' => 30,
         'max_quantity_per_item' => 10,
+        'guest_checkout_enabled' => true,
     ];
 
     public function get(string $key): mixed
@@ -40,6 +41,7 @@ class SettingsService
 
         return array_merge(array_intersect_key(self::DEFAULTS, array_flip([
             'store_name', 'store_tagline', 'support_phone', 'support_email', 'store_address', 'currency', 'free_shipping_threshold',
+            'guest_checkout_enabled',
         ])), $public);
     }
 }

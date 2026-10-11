@@ -11,7 +11,7 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'X-Cart-Token', 'X-XSRF-TOKEN'],
+    'allowed_headers' => ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'X-Cart-Token', 'X-Order-Token', 'X-XSRF-TOKEN'],
 
     'exposed_headers' => ['X-Cart-Token', 'Retry-After', 'X-RateLimit-Remaining', 'Content-Disposition'],
 

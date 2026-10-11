@@ -33,14 +33,23 @@ class OrderService
     ) {}
 
     /**
-     * Turn the user's cart into an order. Prices, discounts, tax and stock are all recomputed
+     * Turn a cart into an order. Prices, discounts, tax and stock are all recomputed
      * server-side inside a transaction; the client only chooses address, shipping and payment.
+     *
+     * Registered customers pass $user (their own cart is used). Guests pass $user = null, their
+     * cart (from the X-Cart-Token) and `email` in $data; the order gets a secret access token.
      *
      * @return array{order: Order, payment: \App\Models\Payment}
      */
-    public function placeFromCart(User $user, array $data, ?string $ip = null): array
+    public function placeFromCart(?User $user, array $data, ?string $ip = null, ?Cart $cart = null): array
     {
-        $cart = $this->carts->forUser($user);
+        if (! $user && ! $this->settings->get('guest_checkout_enabled')) {
+            throw new BusinessException('Please log in or create an account to place an order.', 403);
+        }
+        if (! $user && ! $cart) {
+            throw new BusinessException('Your cart is empty.', 422, ['cart' => ['Your cart is empty.']]);
+        }
+        $cart ??= $this->carts->forUser($user);
         $cart->load(['coupon', 'items.product' => fn ($q) => $q->with(['brand', 'category', 'inventory', 'primaryImage'])]);
         if ($cart->items->isEmpty()) {
             throw new BusinessException('Your cart is empty.', 422, ['cart' => ['Your cart is empty.']]);
@@ -56,6 +65,11 @@ class OrderService
         $shippingMethod = $data['shipping_method'] ?? 'standard';
 
         $shippingAddress = $this->resolveAddress($user, $data, 'shipping');
+        $contact = [
+            'name' => $user?->name ?? ($shippingAddress['name'] ?? null),
+            'email' => strtolower(trim((string) ($user?->email ?? $data['email'] ?? ''))),
+            'phone' => $user?->phone ?: ($data['phone'] ?? $shippingAddress['phone'] ?? null),
+        ];
         $billingAddress = ! empty($data['billing_same_as_shipping']) || empty($data['billing_address_id']) && empty($data['billing_address'])
             ? $shippingAddress
             : $this->resolveAddress($user, $data, 'billing');
@@ -65,6 +79,7 @@ class OrderService
             $cart->coupon,
             $shippingMethod,
             $user,
+            $contact['email'],
         );
         if ($cart->coupon && $totals['coupon_error']) {
             $cart->update(['coupon_id' => null]);
@@ -80,10 +95,15 @@ class OrderService
             }
         }
 
-        $order = DB::transaction(function () use ($user, $cart, $totals, $method, $shippingMethod, $shippingAddress, $billingAddress, $data, $ip) {
+        $order = DB::transaction(function () use ($user, $cart, $totals, $method, $shippingMethod, $shippingAddress, $billingAddress, $data, $ip, $contact) {
             $order = Order::create([
                 'order_number' => $this->generateOrderNumber(),
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
+                'customer_name' => $contact['name'],
+                'customer_email' => $contact['email'] ?: null,
+                'customer_phone' => $contact['phone'],
+                'is_guest' => $user === null,
+                'guest_token' => $user === null ? bin2hex(random_bytes(32)) : null,
                 'status' => OrderStatus::Pending,
                 'payment_status' => OrderPaymentStatus::Pending,
                 'payment_method' => $method,
@@ -133,10 +153,10 @@ class OrderService
                     throw new BusinessException('This coupon has reached its usage limit.', 422, ['coupon' => ['Usage limit reached.']]);
                 }
                 $coupon->increment('used_count');
-                CouponUsage::create(['coupon_id' => $coupon->id, 'user_id' => $user->id, 'order_id' => $order->id, 'discount_amount' => $order->discount]);
+                CouponUsage::create(['coupon_id' => $coupon->id, 'user_id' => $user?->id, 'email' => $contact['email'] ?: null, 'order_id' => $order->id, 'discount_amount' => $order->discount]);
             }
 
-            $order->statusHistory()->create(['status' => OrderStatus::Pending, 'comment' => 'Order placed', 'user_id' => $user->id]);
+            $order->statusHistory()->create(['status' => OrderStatus::Pending, 'comment' => $user ? 'Order placed' : 'Order placed (guest checkout)', 'user_id' => $user?->id]);
             $this->carts->clear($cart);
 
             return $order;
@@ -192,7 +212,7 @@ class OrderService
         return $payment;
     }
 
-    public function cancelByCustomer(Order $order, User $user, ?string $reason): Order
+    public function cancelByCustomer(Order $order, ?User $user, ?string $reason): Order
     {
         if (! $order->status->isCancellableByCustomer()) {
             throw new BusinessException('This order can no longer be cancelled. Please contact support.', 422);
@@ -370,6 +390,34 @@ class OrderService
         return $orders->count();
     }
 
+    /**
+     * Move a guest order into a customer's account. Only allowed when the order's email is the
+     * account's email, so nobody can collect someone else's order with just its number.
+     */
+    public function attachGuestOrder(Order $order, User $user): Order
+    {
+        if (! $order->is_guest) {
+            throw new BusinessException('This order already belongs to an account.', 409);
+        }
+        if (strtolower((string) $order->customer_email) !== strtolower($user->email)) {
+            throw new BusinessException('This order was placed with a different email address ('.$this->maskEmail((string) $order->customer_email).').', 422);
+        }
+        DB::transaction(function () use ($order, $user) {
+            $order->forceFill(['user_id' => $user->id, 'is_guest' => false])->save();
+            CouponUsage::where('order_id', $order->id)->whereNull('user_id')->update(['user_id' => $user->id]);
+            $order->statusHistory()->create(['status' => $order->status, 'comment' => 'Order added to customer account', 'is_customer_visible' => false, 'user_id' => $user->id]);
+        });
+
+        return $order->fresh();
+    }
+
+    public function maskEmail(string $email): string
+    {
+        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        return mb_substr($name, 0, 2).str_repeat('•', max(1, mb_strlen($name) - 2)).'@'.$domain;
+    }
+
     private function assertMethodOffered(PaymentMethod $method): void
     {
         if (! PaymentManager::isOffered($method)) {
@@ -388,10 +436,10 @@ class OrderService
         }
     }
 
-    private function resolveAddress(User $user, array $data, string $kind): array
+    private function resolveAddress(?User $user, array $data, string $kind): array
     {
         $id = $data["{$kind}_address_id"] ?? null;
-        if ($id) {
+        if ($id && $user) {
             $address = Address::where('user_id', $user->id)->find($id);
             if (! $address) {
                 throw new BusinessException('The selected address was not found.', 422, ["{$kind}_address_id" => ['Invalid address.']]);
@@ -403,7 +451,7 @@ class OrderService
         if (! $inline) {
             throw new BusinessException('Please select a delivery address.', 422, ["{$kind}_address_id" => ['An address is required.']]);
         }
-        if (! empty($data['save_address'])) {
+        if ($user && ! empty($data['save_address'])) {
             $user->addresses()->create($inline + ['is_default' => ! $user->addresses()->exists()]);
         }
 

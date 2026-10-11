@@ -1,6 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { ORDER_TOKEN } from '../api/http-context';
 import { CART_TOKEN_KEY } from '../services/cart.service';
 import { AuthStore } from '../state/auth.store';
 import { storage } from '../utils/storage';
@@ -21,6 +22,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
   if (cartToken) {
     setHeaders['X-Cart-Token'] = cartToken;
+  }
+  const orderToken = req.context.get(ORDER_TOKEN);
+  if (orderToken) {
+    setHeaders['X-Order-Token'] = orderToken;
   }
   return next(req.clone({ setHeaders }));
 };

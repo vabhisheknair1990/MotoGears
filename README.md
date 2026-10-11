@@ -199,6 +199,34 @@ Background jobs: Docker starts a queue worker automatically (`QUEUE_CONNECTION=d
 `php artisan queue:work`, or set `QUEUE_CONNECTION=sync` to process imports inside the upload request.
 Uploaded files are deleted after 30 days (`IMPORT_KEEP_FILES_DAYS`); the history stays.
 
+### Guest checkout
+
+Shoppers can buy without creating an account (switch it off in **Admin → Settings → Checkout → Allow guest
+checkout**).
+
+- **Checkout** — the cart's *Checkout* button opens the same 4-step checkout; for guests step 1 asks for an
+  email address and the delivery address instead of saved addresses. All payment methods work (COD,
+  Razorpay, demo card/UPI). Logged-in customers keep the normal checkout.
+- **Private order link** — each guest order gets a secret 64-character token. The confirmation email (and
+  every status email) contains a private link `/order/<number>?token=…`; the order is also remembered in
+  that browser. Without the token the order simply isn't found (404), so order numbers can't be guessed.
+- **Order details page** (`/order/:number`) — timeline, items, totals, address, GST invoice download, retry
+  payment for unpaid orders and cancel (before packing), exactly like *My orders*.
+- **Track order** (`/track-order`, linked in the header, footer and mobile menu) — order number + email
+  opens the order. Rate limited (6/min, 30/hour per IP). Orders that belong to an account ask the shopper
+  to log in instead.
+- **Save to an account** — the success and order pages offer *Create account* (just a password; the order
+  and its address move into the new account and the shopper is logged in). A shopper who already has an
+  account logs in and clicks *Add to My orders*.
+- **Coupons** — "uses per customer" limits count by account **or** email, so guests can't reuse a coupon by
+  checking out again with the same email.
+- **Admin** — orders list has a *Guests / Registered* filter and a *Guest* badge; search matches the
+  customer's name, email and phone; the order page shows the guest's email and phone.
+
+The migration `2026_10_11_000100_add_guest_checkout` makes `orders.user_id` nullable and stores the
+customer's name, email and phone on every order (existing orders are backfilled), so nothing is lost when
+an account is later deleted.
+
 ---
 
 ## 4. Features
@@ -215,7 +243,8 @@ Uploaded files are deleted after 30 days (`IMPORT_KEEP_FILES_DAYS`); the history
 - Product page: gallery with zoom, full screen and video, compatibility checker, specs, warranty,
   installation, what's included, reviews with photos, FAQs, share, sticky mobile buy bar.
 - Cart drawer + cart page (quantity, coupons, shipping choice, free-shipping meter), wishlist
-  (move to cart), 4-step checkout (address → shipping → payment → review), order success, retry payment.
+  (move to cart), 4-step checkout (address → shipping → payment → review) for customers **and guests**, order success,
+  retry payment, guest order page + Track order (see "Guest checkout" in section 3).
 - Account: dashboard, orders + timeline + cancel, printable/downloadable GST invoice, profile, password,
   addresses, saved vehicles ("My garage"), wishlist, reviews (verified purchase), notifications.
 - Content: about, CMS pages, FAQ, blog (categories, tags, search), contact form, 404.
@@ -223,7 +252,8 @@ Uploaded files are deleted after 30 days (`IMPORT_KEEP_FILES_DAYS`); the history
 ### Admin (`/admin`)
 - Dashboard: KPIs, revenue/orders chart (30 days / 12 months), orders by status, top categories,
   brands, products and payment methods, recent orders, low-stock alerts — one `GET /admin/dashboard` call.
-- Orders: status tabs with counts, search, filters (payment status/method, date range), sort, CSV export;
+- Orders: status tabs with counts, search (number, name, email, phone), filters (payment status/method,
+  guest/registered, date range), sort, CSV export;
   detail with items, totals, timeline, payments, addresses, status transitions (validated server-side,
   optional customer email), tracking and internal notes, invoice.
 - Products: filters, featured/active toggles, soft delete + restore; editor with pricing (margin, GST
@@ -286,7 +316,8 @@ Uploaded files are deleted after 30 days (`IMPORT_KEEP_FILES_DAYS`); the history
 - Docs: `https://api.themotogears.in/docs` (local: `http://localhost:8000/docs`, Swagger UI) — spec at `backend/public/docs/openapi.yaml`
 - Auth: `POST /auth/login` (customer) or `POST /admin/auth/login` (staff) returns a token; send
   `Authorization: Bearer <token>`. Guest carts use the `X-Cart-Token` header returned by the cart API
-  and merge into the account on login.
+  and merge into the account on login. Guest orders (`/guest/...`) are opened with the `X-Order-Token`
+  header (or `?token=`) returned when the order is placed.
 
 ```json
 { "success": true, "message": "Products retrieved successfully", "data": [], "meta": { "current_page": 1, "last_page": 9, "per_page": 20, "total": 172 } }
@@ -297,9 +328,9 @@ Uploaded files are deleted after 30 days (`IMPORT_KEEP_FILES_DAYS`); the history
 ## 7. Tests
 
 ```bash
-cd backend && php artisan test      # 93 feature tests: auth, catalog, cart, coupons, checkout,
+cd backend && php artisan test      # 118 feature tests: auth, catalog, cart, coupons, checkout, guest checkout,
                                     # orders, Razorpay, product import, inventory, reviews, admin CRUD, authorization
-cd frontend && ng test              # 59 Vitest specs: services (incl. Razorpay, product import), guards, interceptors, cart state,
+cd frontend && ng test              # 64 Vitest specs: services (incl. Razorpay, product import, guest orders), guards, interceptors, cart state,
                                     # components, admin chart/CRUD logic
 ```
 

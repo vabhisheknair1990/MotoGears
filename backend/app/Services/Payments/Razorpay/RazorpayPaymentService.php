@@ -41,9 +41,9 @@ class RazorpayPaymentService
             'name' => (string) $this->settings->get('store_name'),
             'description' => 'Order '.$order->order_number,
             'prefill' => [
-                'name' => $order->user?->name ?? ($address['name'] ?? ''),
-                'email' => $order->user?->email ?? '',
-                'contact' => preg_replace('/[^0-9+]/', '', (string) ($order->user?->phone ?: ($address['phone'] ?? ''))),
+                'name' => $order->customer_name ?? $order->user?->name ?? ($address['name'] ?? ''),
+                'email' => $order->customer_email ?? $order->user?->email ?? '',
+                'contact' => preg_replace('/[^0-9+]/', '', (string) ($order->customer_phone ?: $order->user?->phone ?: ($address['phone'] ?? ''))),
             ],
             'notes' => ['order_number' => $order->order_number],
             'theme' => ['color' => config('payments.razorpay.theme_color')],

@@ -21,8 +21,24 @@ class CheckoutController extends Controller
     public function show(Request $request): JsonResponse
     {
         $request->validate(['shipping_method' => ['nullable', Rule::in(['standard', 'express'])]]);
-        $user = $request->user();
-        $cart = $this->carts->forUser($user);
+
+        return $this->ok($this->build($request, $this->carts->forUser($request->user()), $request->user()), 'Checkout details retrieved');
+    }
+
+    /** Guest checkout: the cart comes from the X-Cart-Token header; there is no address book. */
+    public function guest(Request $request): JsonResponse
+    {
+        $request->validate(['shipping_method' => ['nullable', Rule::in(['standard', 'express'])]]);
+        if (! $this->settings->get('guest_checkout_enabled')) {
+            return response()->json(['success' => false, 'message' => 'Please log in or create an account to check out.', 'data' => ['guest_checkout_enabled' => false]], 403);
+        }
+        $cart = $this->carts->current($request) ?? $this->carts->resolve($request);
+
+        return $this->ok($this->build($request, $cart, null), 'Checkout details retrieved');
+    }
+
+    private function build(Request $request, \App\Models\Cart $cart, ?\App\Models\User $user): array
+    {
         if ($request->filled('shipping_method')) {
             $this->carts->setShippingMethod($cart, $request->shipping_method);
         }
@@ -42,11 +58,12 @@ class CheckoutController extends Controller
             return $m;
         });
 
-        return $this->ok([
+        return [
             'cart' => (new CartResource($summary))->resolve($request),
-            'addresses' => AddressResource::collection($user->addresses()->orderByDesc('is_default')->latest()->get())->resolve($request),
+            'addresses' => $user ? AddressResource::collection($user->addresses()->orderByDesc('is_default')->latest()->get())->resolve($request) : [],
             'shipping_methods' => $this->shipping->options($net, $freeShip),
             'payment_methods' => $payments->values(),
-        ], 'Checkout details retrieved');
+            'is_guest' => $user === null,
+        ];
     }
 }

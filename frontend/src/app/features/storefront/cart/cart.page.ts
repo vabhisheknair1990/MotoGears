@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
+import { CmsService } from '../../../core/services/cms.service';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CartItem } from '../../../core/models/api.models';
@@ -25,6 +28,10 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
 export class CartPage {
   protected readonly store = inject(CartStore);
   protected readonly auth = inject(AuthStore);
+  private readonly settings = toSignal(inject(CmsService).getSettings().pipe(catchError(() => of(null))), { initialValue: null });
+  /** Guest checkout is on unless the store switched it off in Settings. */
+  protected readonly guestCheckout = computed(() => this.settings()?.guest_checkout_enabled !== false);
+  protected readonly canCheckout = computed(() => this.auth.isLoggedIn() || this.guestCheckout());
   private readonly cart = inject(CartService);
   private readonly wishlist = inject(WishlistService);
   private readonly toast = inject(ToastService);

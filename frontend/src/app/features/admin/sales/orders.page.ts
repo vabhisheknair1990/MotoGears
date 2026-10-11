@@ -39,6 +39,9 @@ import { SearchInputComponent } from '../shared/search-input.component';
         <select class="select input-sm" aria-label="Payment status" [value]="list.value('payment_status')" (change)="list.set({ payment_status: $any($event.target).value || null })">
           <option value="">Any payment</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="refunded">Refunded</option>
         </select>
+        <select class="select input-sm" aria-label="Customer type" [value]="list.value('customer_type')" (change)="list.set({ customer_type: $any($event.target).value || null })">
+          <option value="">All customers</option><option value="registered">Registered</option><option value="guest">Guests</option>
+        </select>
         <select class="select input-sm" aria-label="Payment method" [value]="list.value('payment_method')" (change)="list.set({ payment_method: $any($event.target).value || null })">
           <option value="">Any method</option>
           @for (m of lookups()?.payment_methods ?? []; track m.value) { <option [value]="m.value">{{ m.label }}</option> }
@@ -57,7 +60,7 @@ import { SearchInputComponent } from '../shared/search-input.component';
             @for (o of list.items(); track o.id) {
               <tr [routerLink]="['/admin/orders', o.id]" tabindex="0" (keydown.enter)="open(o.id)">
                 <td><div class="fw-600 mono">{{ o.order_number }}</div><div class="text-xs text-muted">{{ o.placed_at | appDate: true }}</div></td>
-                <td><div>{{ o.customer?.name ?? o.shipping_address.name }}</div><div class="text-xs text-muted">{{ o.shipping_address.city }}, {{ o.shipping_address.state }}</div></td>
+                <td><div>{{ o.customer?.name ?? o.shipping_address.name }}@if (o.is_guest) { <span class="badge guest" title="Ordered without an account">Guest</span> }</div><div class="text-xs text-muted">{{ o.shipping_address.city }}, {{ o.shipping_address.state }}</div></td>
                 <td class="hide-mobile">{{ o.total_quantity ?? o.items_count }} × <span class="text-muted text-sm">{{ o.items?.[0]?.product_name }}@if ((o.items?.length ?? 0) > 1) { +{{ (o.items?.length ?? 1) - 1 }} }</span></td>
                 <td><app-status-badge [status]="o.payment_status" /><div class="text-xs text-muted mt-2">{{ o.payment_method_label }}</div></td>
                 <td><app-status-badge [status]="o.status" [label]="o.status_label" /></td>
@@ -74,6 +77,7 @@ import { SearchInputComponent } from '../shared/search-input.component';
     </section>
   `,
   styles: `
+    .badge.guest { margin-left: 6px; font-size: 10.5px; padding: 1px 7px; background: var(--info-50); color: var(--info); }
     .status-tabs { overflow-x: auto; margin-bottom: 14px; white-space: nowrap; }
     .tab-count { background: var(--line-2); border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
@@ -100,7 +104,7 @@ export class OrdersPage {
   constructor() {
     inject(SeoService).set({ title: 'Orders' });
     const qp = inject(ActivatedRoute).snapshot.queryParamMap;
-    this.list.query.set({ page: 1, per_page: 20, sort: 'newest', status: qp.get('status'), customer_id: qp.get('customer_id'), search: qp.get('search') });
+    this.list.query.set({ page: 1, per_page: 20, sort: 'newest', status: qp.get('status'), customer_id: qp.get('customer_id'), customer_type: qp.get('customer_type'), search: qp.get('search') });
     this.list.load();
   }
 

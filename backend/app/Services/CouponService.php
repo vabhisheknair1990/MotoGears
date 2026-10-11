@@ -28,7 +28,7 @@ class CouponService
      * @param  Collection<int, array{product: \App\Models\Product, quantity: int, line_subtotal: float}>  $lines
      * @return array{discount: float, free_shipping: bool, eligible_keys: array<int>}
      */
-    public function evaluate(Coupon $coupon, Collection $lines, ?User $user): array
+    public function evaluate(Coupon $coupon, Collection $lines, ?User $user, ?string $email = null): array
     {
         $fail = fn (string $msg) => throw new BusinessException($msg, 422, ['code' => [$msg]]);
 
@@ -44,8 +44,13 @@ class CouponService
         if ($coupon->usage_limit !== null && $coupon->used_count >= $coupon->usage_limit) {
             $fail('This coupon has reached its usage limit.');
         }
-        if ($user && $coupon->per_user_limit !== null) {
-            $used = CouponUsage::where('coupon_id', $coupon->id)->where('user_id', $user->id)->count();
+        // Per-customer limit counts both the account and the email address, so a coupon can't be
+        // reused by checking out as a guest with the same email (or vice versa).
+        $email = strtolower(trim((string) ($email ?? $user?->email)));
+        if ($coupon->per_user_limit !== null && ($user || $email !== '')) {
+            $used = CouponUsage::where('coupon_id', $coupon->id)
+                ->where(fn ($q) => $q->when($user, fn ($w) => $w->where('user_id', $user->id))->when($email !== '', fn ($w) => $w->orWhere('email', $email)))
+                ->count();
             if ($used >= $coupon->per_user_limit) {
                 $fail('You have already used this coupon the maximum number of times.');
             }

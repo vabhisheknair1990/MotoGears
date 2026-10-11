@@ -24,7 +24,7 @@ class PricingService
     /**
      * @param  iterable<array{product: Product, quantity: int, key?: mixed}>  $items
      */
-    public function calculate(iterable $items, ?Coupon $coupon, string $shippingMethod, ?User $user): array
+    public function calculate(iterable $items, ?Coupon $coupon, string $shippingMethod, ?User $user, ?string $email = null): array
     {
         $lines = collect($items)->values()->mapWithKeys(function (array $item, int $i) {
             /** @var Product $p */
@@ -51,7 +51,7 @@ class PricingService
 
         if ($coupon && $lines->isNotEmpty()) {
             try {
-                $couponResult = $this->coupons->evaluate($coupon, $lines, $user);
+                $couponResult = $this->coupons->evaluate($coupon, $lines, $user, $email);
                 $lines = $this->allocateDiscount($lines, $couponResult['eligible_keys'], $couponResult['discount']);
             } catch (BusinessException $e) {
                 $couponError = $e->getMessage();

@@ -1,7 +1,7 @@
 import { DOCUMENT, Injectable, inject } from '@angular/core';
 import { Observable, firstValueFrom, map } from 'rxjs';
 import { ApiService } from '../api/api.service';
-import { silentNoRedirect } from '../api/http-context';
+import { silentNoRedirect, withOrderToken } from '../api/http-context';
 import { Order, PlaceOrderResult, RazorpayCheckoutOptions } from '../models/api.models';
 
 export const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -48,7 +48,8 @@ export class RazorpayService {
   }
 
   /** Opens the popup and resolves once the payment is verified, failed for good, or the popup is closed. */
-  async checkout(orderId: number, options: RazorpayCheckoutOptions): Promise<RazorpayOutcome> {
+  /** `guest` (order number + secret token) routes verification through the guest order API. */
+  async checkout(orderId: number, options: RazorpayCheckoutOptions, guest?: { number: string; token: string }): Promise<RazorpayOutcome> {
     const Razorpay = await this.load();
     return new Promise<RazorpayOutcome>((resolve) => {
       let settled = false;
@@ -70,7 +71,7 @@ export class RazorpayService {
         theme: options.theme,
         retry: { enabled: true },
         handler: (res: RazorpaySuccess) => {
-          firstValueFrom(this.verify(orderId, res))
+          firstValueFrom(this.verify(orderId, res, guest))
             .then((r) => finish(r.payment_successful ? { status: 'paid', order: r.order } : { status: 'failed', order: r.order, message: r.payment.failure_reason ?? 'Payment failed' }))
             .catch((e: { error?: { message?: string } }) =>
               finish({ status: 'failed', order: null, message: e?.error?.message ?? 'We could not confirm your payment yet. If money was deducted, the order will update automatically.' }),
@@ -83,17 +84,23 @@ export class RazorpayService {
       });
       // Razorpay keeps the popup open so the customer can try another method; just record the attempt.
       rzp.on('payment.failed', (r) => {
-        this.reportFailure(orderId, options.order_id, r.error?.description ?? r.error?.reason).subscribe({ error: () => undefined });
+        this.reportFailure(orderId, options.order_id, r.error?.description ?? r.error?.reason, guest).subscribe({ error: () => undefined });
       });
       rzp.open();
     });
   }
 
-  verify(orderId: number, res: RazorpaySuccess): Observable<PlaceOrderResult> {
-    return this.api.post<PlaceOrderResult>(`orders/${orderId}/razorpay/verify`, res, silentNoRedirect()).pipe(map((r) => r.data));
+  verify(orderId: number, res: RazorpaySuccess, guest?: { number: string; token: string }): Observable<PlaceOrderResult> {
+    const [path, ctx] = guest
+      ? [`guest/orders/${encodeURIComponent(guest.number)}/razorpay/verify`, withOrderToken(guest.token)]
+      : [`orders/${orderId}/razorpay/verify`, silentNoRedirect()];
+    return this.api.post<PlaceOrderResult>(path, res, ctx).pipe(map((r) => r.data));
   }
 
-  reportFailure(orderId: number, razorpayOrderId: string, reason?: string): Observable<unknown> {
-    return this.api.post(`orders/${orderId}/razorpay/failed`, { razorpay_order_id: razorpayOrderId, reason: reason ?? null }, silentNoRedirect());
+  reportFailure(orderId: number, razorpayOrderId: string, reason?: string, guest?: { number: string; token: string }): Observable<unknown> {
+    const [path, ctx] = guest
+      ? [`guest/orders/${encodeURIComponent(guest.number)}/razorpay/failed`, withOrderToken(guest.token)]
+      : [`orders/${orderId}/razorpay/failed`, silentNoRedirect()];
+    return this.api.post(path, { razorpay_order_id: razorpayOrderId, reason: reason ?? null }, ctx);
   }
 }

@@ -245,6 +245,8 @@ export interface CheckoutSummary {
   addresses: Address[];
   shipping_methods: ShippingMethod[];
   payment_methods: PaymentMethodOption[];
+  /** True for guest checkout (no account, no address book). */
+  is_guest?: boolean;
 }
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned' | 'refunded';
@@ -293,7 +295,9 @@ export interface Order {
   payment?: Payment | null;
   payments?: Payment[];
   timeline?: TimelineEntry[];
-  customer?: { id: number; name: string; email: string; phone: string | null };
+  /** Contact details captured at checkout; `id` is null for guest orders. */
+  customer?: { id: number | null; name: string | null; email: string | null; phone: string | null; is_guest?: boolean };
+  is_guest?: boolean;
   can_cancel: boolean;
   can_pay: boolean;
   can_review: boolean;
@@ -305,7 +309,11 @@ export interface Order {
   created_at: string;
 }
 
-export interface PlaceOrderResult { order: Order; payment: Payment; payment_successful: boolean; razorpay?: RazorpayCheckoutOptions | null }
+export interface PlaceOrderResult {
+  order: Order; payment: Payment; payment_successful: boolean; razorpay?: RazorpayCheckoutOptions | null;
+  /** Guest orders only: the secret that opens the order (also in the confirmation email link). */
+  guest_token?: string | null;
+}
 
 export interface Invoice {
   invoice_number: string; invoice_date: string; order_number: string; order_id: number; status: string;
@@ -405,5 +413,6 @@ export interface CmsPage { id: number; title: string; slug: string; content: str
 export interface StoreSettings {
   store_name: string; store_tagline: string; support_phone: string; support_email: string; store_address: string;
   currency: string; free_shipping_threshold: number; standard_shipping_cost?: number; express_shipping_cost?: number; cod_enabled?: boolean;
+  guest_checkout_enabled?: boolean;
   payment_methods?: { code: PaymentCode; label: string; description: string }[];
 }

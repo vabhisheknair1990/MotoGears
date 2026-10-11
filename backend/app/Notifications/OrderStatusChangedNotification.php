@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -13,7 +14,7 @@ class OrderStatusChangedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return $notifiable instanceof AnonymousNotifiable ? ['mail'] : ['database', 'mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -25,7 +26,7 @@ class OrderStatusChangedNotification extends Notification
             $mail->line('Tracking number: '.$this->order->tracking_number.' ('.$this->order->carrier.')');
         }
 
-        return $mail->action('Track order', rtrim(config('app.frontend_url'), '/').'/account/orders/'.$this->order->id);
+        return $mail->action('Track order', $this->order->customerUrl());
     }
 
     public function toArray(object $notifiable): array

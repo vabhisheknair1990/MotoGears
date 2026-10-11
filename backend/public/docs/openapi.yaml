@@ -17,7 +17,7 @@ info:
 
 
     **Auth:** send `Authorization: Bearer <token>` from `/auth/login` (customers) or `/admin/auth/login` (staff). Guests identify their cart with
-    the `X-Cart-Token` header.
+    the `X-Cart-Token` header and a guest order with its `X-Order-Token` header.
 
 
     **Demo credentials:** admin@example.com / password · customer@example.com / password'
@@ -49,6 +49,8 @@ tags:
   description: Checkout summary.
 - name: Orders
   description: Place, pay, cancel, track and invoice orders.
+- name: Guest checkout
+  description: Checkout without an account. Guest orders are opened with their X-Order-Token; track by order number + email; turn into an account later.
 - name: Payments
   description: Razorpay checkout verification, failure reporting and webhooks.
 - name: Customers
@@ -92,6 +94,11 @@ components:
       in: header
       name: X-Cart-Token
       description: Guest cart token returned when a guest adds the first item
+    orderToken:
+      type: apiKey
+      in: header
+      name: X-Order-Token
+      description: Secret token for one guest order (returned when it is placed, emailed to the shopper, or found via /v1/guest/orders/track). Can also be sent as ?token=
   schemas:
     PaginationMeta:
       type: object
@@ -7597,6 +7604,15 @@ paths:
           - oldest
           - total_high
           - total_low
+      - name: customer_type
+        in: query
+        required: false
+        description: guest (ordered without an account) or registered
+        schema:
+          type: string
+          enum:
+          - guest
+          - registered
       security:
       - bearerAuth: []
       responses:
@@ -15862,6 +15878,383 @@ paths:
                     category: Payments
                     question: Is Cash on Delivery available everywhere?
                     answer: COD is available across most serviceable PIN codes for orders up to ₹50,000.
+  /v1/guest/checkout:
+    get:
+      tags:
+      - Guest checkout
+      summary: Guest checkout summary
+      operationId: GET_guest_checkout
+      description: 'Cart totals, shipping and payment methods for a shopper without an account. Returns 403 with `guest_checkout_enabled: false`
+        when the store has turned guest checkout off.'
+      parameters:
+      - name: shipping_method
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - standard
+          - express
+      security:
+      - cartToken: []
+      responses:
+        '200': &id002
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - success
+                - message
+                - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    nullable: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/guest/orders:
+    post:
+      tags:
+      - Guest checkout
+      summary: Place an order without an account
+      operationId: POST_guest_orders
+      description: Places the order from the `X-Cart-Token` cart. `data.guest_token` is the secret that opens the order later (also emailed to the
+        shopper with a private link). 409 if the request is authenticated (use `POST /v1/orders`), 403 if guest checkout is disabled.
+      security:
+      - cartToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                  nullable: true
+                shipping_address:
+                  type: object
+                  properties: &id001
+                    name:
+                      type: string
+                    phone:
+                      type: string
+                    line1:
+                      type: string
+                    line2:
+                      type: string
+                    landmark:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    postal_code:
+                      type: string
+                billing_same_as_shipping:
+                  type: boolean
+                billing_address:
+                  type: object
+                  properties: *id001
+                  nullable: true
+                shipping_method:
+                  type: string
+                  enum:
+                  - standard
+                  - express
+                payment_method:
+                  type: string
+                payment_details:
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+            example:
+              email: ravi@example.com
+              shipping_address:
+                name: Ravi Kumar
+                phone: '9876543210'
+                line1: 12 MG Road
+                city: Kochi
+                state: Kerala
+                postal_code: '682011'
+              billing_same_as_shipping: true
+              shipping_method: standard
+              payment_method: cod
+      responses:
+        '200': *id002
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Logged in — use the account checkout
+  /v1/guest/orders/track:
+    post:
+      tags:
+      - Guest checkout
+      summary: Find a guest order by number + email
+      operationId: POST_guest_orders_track
+      description: 'Returns `order_number` and `guest_token` when the number and email match. Unknown combinations return 404; orders that belong
+        to an account return 409 with `requires_login: true`. Rate limited to 6/min and 30/hour per IP.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_number:
+                  type: string
+                email:
+                  type: string
+                  format: email
+            example:
+              order_number: MG261011-12345
+              email: ravi@example.com
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Order belongs to an account — log in
+  /v1/guest/orders/{order}:
+    get:
+      tags:
+      - Guest checkout
+      summary: Guest order details
+      operationId: GET_guest_orders_order
+      description: Requires the order token (`X-Order-Token` header or `?token=`). A missing or wrong token returns 404.
+      parameters:
+      - &id003
+        name: order
+        in: path
+        required: true
+        description: Order number, e.g. MG261011-12345
+        schema:
+          type: string
+      security: &id004
+      - orderToken: []
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/cancel:
+    post:
+      tags:
+      - Guest checkout
+      summary: Cancel a guest order (before packing)
+      operationId: POST_guest_orders_order_cancel
+      parameters:
+      - *id003
+      security: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+            example:
+              reason: Ordered by mistake
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/pay:
+    post:
+      tags:
+      - Guest checkout
+      summary: Retry payment for a pending guest order
+      operationId: POST_guest_orders_order_pay
+      description: Same as `POST /v1/orders/{order}/pay`. Demo methods return 402 when the payment fails.
+      parameters:
+      - *id003
+      security: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method:
+                  type: string
+                payment_details:
+                  nullable: true
+            example:
+              payment_method: razorpay
+              payment_details: null
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/razorpay/verify:
+    post:
+      tags:
+      - Guest checkout
+      summary: Verify a Razorpay payment (guest)
+      operationId: POST_guest_orders_order_razorpay_verify
+      parameters:
+      - *id003
+      security: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                razorpay_order_id:
+                  type: string
+                razorpay_payment_id:
+                  type: string
+                razorpay_signature:
+                  type: string
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/razorpay/failed:
+    post:
+      tags:
+      - Guest checkout
+      summary: Report a failed/dismissed Razorpay payment (guest)
+      operationId: POST_guest_orders_order_razorpay_failed
+      parameters:
+      - *id003
+      security: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                razorpay_order_id:
+                  type: string
+                reason:
+                  type: string
+                  nullable: true
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/invoice:
+    get:
+      tags:
+      - Guest checkout
+      summary: Guest invoice data (JSON)
+      operationId: GET_guest_orders_order_invoice
+      parameters:
+      - *id003
+      security: *id004
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/invoice/download:
+    get:
+      tags:
+      - Guest checkout
+      summary: Download guest invoice (HTML)
+      operationId: GET_guest_orders_order_invoice_download
+      parameters:
+      - *id003
+      security: *id004
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/guest/orders/{order}/create-account:
+    post:
+      tags:
+      - Guest checkout
+      summary: Turn a guest order into an account
+      operationId: POST_guest_orders_order_create_account
+      description: Creates an account for the order email, moves the order (and its address) into it and returns a login token like `/auth/register`.
+        409 if an account with that email already exists — log in and use `attach`.
+      parameters:
+      - *id003
+      security: *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  nullable: true
+                password:
+                  type: string
+                  format: password
+                password_confirmation:
+                  type: string
+                  format: password
+                marketing_opt_in:
+                  type: boolean
+      responses:
+        '200': *id002
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Account already exists for this email
+  /v1/guest/orders/{order}/attach:
+    post:
+      tags:
+      - Guest checkout
+      summary: Add a guest order to my account
+      operationId: POST_guest_orders_order_attach
+      description: Logged-in customer whose email matches the order email. Needs both the bearer token and the order token.
+      parameters:
+      - *id003
+      security:
+      - bearerAuth: []
+        orderToken: []
+      responses:
+        '200': *id002
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /v1/homepage:
     get:
       tags:

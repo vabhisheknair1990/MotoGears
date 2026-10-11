@@ -32,7 +32,7 @@ class InvoiceService
             'payment_status' => $order->payment_status->label(),
             'transaction_id' => $order->payment?->transaction_id,
             'seller' => $seller,
-            'customer' => ['name' => $order->user?->name, 'email' => $order->user?->email, 'phone' => $order->user?->phone],
+            'customer' => ['name' => $order->customer_name ?? $order->user?->name, 'email' => $order->customer_email ?? $order->user?->email, 'phone' => $order->customer_phone ?? $order->user?->phone],
             'billing_address' => $order->billing_address,
             'shipping_address' => $order->shipping_address,
             'items' => $order->items->map(fn ($i) => [

@@ -26,6 +26,7 @@ class OrderController extends Controller
             'payment_status' => ['nullable', Rule::in(['pending', 'paid', 'failed', 'refunded'])],
             'payment_method' => ['nullable', Rule::in(\App\Enums\PaymentMethod::values())],
             'customer_id' => ['nullable', 'integer'],
+            'customer_type' => ['nullable', Rule::in(['guest', 'registered'])],
             'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'],
             'min_total' => ['nullable', 'numeric'], 'max_total' => ['nullable', 'numeric'],
             'sort' => ['nullable', Rule::in(['newest', 'oldest', 'total_high', 'total_low'])],
@@ -35,12 +36,17 @@ class OrderController extends Controller
             ->when($request->search, function ($q, $s) {
                 $q->where(fn ($w) => $w->where('order_number', 'like', "%{$s}%")
                     ->orWhere('tracking_number', 'like', "%{$s}%")
+                    ->orWhere('customer_email', 'like', "%{$s}%")
+                    ->orWhere('customer_name', 'like', "%{$s}%")
+                    ->orWhere('customer_phone', 'like', "%{$s}%")
                     ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%")->orWhere('phone', 'like', "%{$s}%")));
             })
             ->when($request->status, fn ($q, $s) => $q->whereIn('status', explode(',', $s)))
             ->when($request->payment_status, fn ($q, $s) => $q->where('payment_status', $s))
             ->when($request->payment_method, fn ($q, $s) => $q->where('payment_method', $s))
             ->when($request->customer_id, fn ($q, $id) => $q->where('user_id', $id))
+            ->when($request->customer_type === 'guest', fn ($q) => $q->where('is_guest', true))
+            ->when($request->customer_type === 'registered', fn ($q) => $q->where('is_guest', false))
             ->when($request->from, fn ($q, $d) => $q->where('placed_at', '>=', \Carbon\Carbon::parse($d)->startOfDay()))
             ->when($request->to, fn ($q, $d) => $q->where('placed_at', '<=', \Carbon\Carbon::parse($d)->endOfDay()))
             ->when($request->filled('min_total'), fn ($q) => $q->where('grand_total', '>=', $request->min_total))
@@ -56,6 +62,7 @@ class OrderController extends Controller
         return $this->paginated($q->paginate($this->perPage(20)), OrderResource::class, 'Orders retrieved successfully', [
             'status_counts' => Order::selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status'),
             'statuses' => OrderStatus::options(),
+            'guest_count' => Order::where('is_guest', true)->count(),
         ]);
     }
 

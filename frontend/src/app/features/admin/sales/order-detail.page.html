@@ -117,10 +117,15 @@
         <div class="card-head"><h2>Customer</h2></div>
         <div class="card-body text-sm">
           @if (o.customer; as c) {
-            <a class="fw-600 plain" [routerLink]="['/admin/customers', c.id]">{{ c.name }}</a>
-            <div><a class="link" [href]="'mailto:' + c.email">{{ c.email }}</a></div>
-            @if (c.phone) { <div>{{ c.phone }}</div> }
-          } @else { <span class="text-muted">Guest / deleted customer</span> }
+            @if (c.id) {
+              <a class="fw-600 plain" [routerLink]="['/admin/customers', c.id]">{{ c.name }}</a>
+            } @else {
+              <span class="fw-600">{{ c.name ?? o.shipping_address.name }}</span> <span class="badge badge-info">Guest</span>
+              <div class="text-xs text-muted">Ordered without an account — order emails go to the address below.</div>
+            }
+            @if (c.email) { <div><a class="link" [href]="'mailto:' + c.email">{{ c.email }}</a></div> }
+            @if (c.phone) { <div><a class="link" [href]="'tel:' + c.phone">{{ c.phone }}</a></div> }
+          } @else { <span class="text-muted">Deleted customer</span> }
           @if (o.customer_notes) { <div class="note"><strong>Customer note:</strong> {{ o.customer_notes }}</div> }
         </div>
       </section>

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CouponUsage extends Model
 {
-    protected $fillable = ['coupon_id', 'user_id', 'order_id', 'discount_amount'];
+    protected $fillable = ['coupon_id', 'user_id', 'email', 'order_id', 'discount_amount'];
 
     protected $casts = ['discount_amount' => 'decimal:2'];
 

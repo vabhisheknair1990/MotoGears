@@ -56,6 +56,10 @@ Route::prefix('guest')->name('guest.')->group(function () {
         Route::post('pay', [V1\GuestOrderController::class, 'pay'])->middleware('throttle:checkout')->name('pay');
         Route::post('razorpay/verify', [V1\GuestOrderController::class, 'razorpayVerify'])->middleware('throttle:checkout')->name('razorpay.verify');
         Route::post('razorpay/failed', [V1\GuestOrderController::class, 'razorpayFailed'])->middleware('throttle:checkout')->name('razorpay.failed');
+        Route::post('upi/qr', [V1\UpiController::class, 'qr'])->middleware('throttle:upi')->name('upi.qr');
+        Route::post('upi/collect', [V1\UpiController::class, 'collect'])->middleware('throttle:upi')->name('upi.collect');
+        Route::get('upi/status', [V1\UpiController::class, 'status'])->middleware('throttle:upi-status')->name('upi.status');
+        Route::post('upi/simulate', [V1\UpiController::class, 'simulate'])->middleware('throttle:upi')->name('upi.simulate');
         Route::get('invoice', [V1\GuestOrderController::class, 'invoice'])->name('invoice');
         Route::get('invoice/download', [V1\GuestOrderController::class, 'downloadInvoice'])->name('invoice.download');
         Route::post('create-account', [V1\GuestOrderController::class, 'createAccount'])->middleware('throttle:auth')->name('create-account');
@@ -155,6 +159,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('{order}/pay', [V1\OrderController::class, 'pay'])->middleware('throttle:checkout')->name('pay');
         Route::post('{order}/razorpay/verify', [V1\RazorpayController::class, 'verify'])->middleware('throttle:checkout')->name('razorpay.verify');
         Route::post('{order}/razorpay/failed', [V1\RazorpayController::class, 'failed'])->middleware('throttle:checkout')->name('razorpay.failed');
+        Route::post('{order}/upi/qr', [V1\UpiController::class, 'qr'])->middleware('throttle:upi')->name('upi.qr');
+        Route::post('{order}/upi/collect', [V1\UpiController::class, 'collect'])->middleware('throttle:upi')->name('upi.collect');
+        Route::get('{order}/upi/status', [V1\UpiController::class, 'status'])->middleware('throttle:upi-status')->name('upi.status');
+        Route::post('{order}/upi/simulate', [V1\UpiController::class, 'simulate'])->middleware('throttle:upi')->name('upi.simulate');
         Route::get('{order}/invoice', [V1\OrderController::class, 'invoice'])->name('invoice');
         Route::get('{order}/invoice/download', [V1\OrderController::class, 'downloadInvoice'])->name('invoice.download');
     });

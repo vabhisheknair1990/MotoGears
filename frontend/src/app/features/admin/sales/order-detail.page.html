@@ -66,7 +66,7 @@
               @for (p of o.payments ?? []; track p.id) {
                 <tr>
                   <td><span class="mono text-sm">{{ p.transaction_id ?? '—' }}</span><div class="text-xs text-muted">{{ p.created_at | appDate: true }}</div></td>
-                  <td>{{ p.method_label }}@if (p.details.last4) { <div class="text-xs text-muted">{{ p.details.brand }} •••• {{ p.details.last4 }}</div> }@if (p.details.vpa) { <div class="text-xs text-muted">{{ p.details.vpa }}</div> }</td>
+                  <td>{{ p.method_label }}@if (p.details.last4) { <div class="text-xs text-muted">{{ p.details.brand }} •••• {{ p.details.last4 }}</div> }@if (p.details.vpa) { <div class="text-xs text-muted">{{ p.details.vpa }}</div> }@if (p.details.upi_flow) { <div class="text-xs text-muted">{{ p.details.upi_flow === 'intent' ? 'Scanned QR code' : 'Request to UPI ID' }}@if (p.details.payer_name) { · {{ p.details.payer_name }} }</div> }</td>
                   <td><app-status-badge [status]="p.status" />@if (p.failure_reason) { <div class="text-xs text-danger">{{ p.failure_reason }}</div> }</td>
                   <td class="num">{{ p.amount | inr }}</td>
                 </tr>

@@ -22,4 +22,22 @@ return [
         'theme_color' => env('RAZORPAY_THEME_COLOR', '#d7263d'),
     ],
 
+    /*
+    | UPI shown on our own page: a QR code to scan with any UPI app (UPI intent) or a
+    | collect request to the customer's UPI ID. The page polls the payment status and the
+    | Razorpay webhook confirms it too, so the order moves on even if the tab is closed.
+    |
+    | provider: "auto" (Razorpay when keys are set, otherwise the demo simulator when demo
+    | methods are on), "razorpay" or "demo". Razorpay needs UPI S2S (intent + collect)
+    | enabled on the account — ask Razorpay support to switch it on.
+    */
+    'upi' => [
+        'enabled' => (bool) env('UPI_ENABLED', true),
+        'provider' => env('UPI_PROVIDER', 'auto'),
+        'qr_ttl_minutes' => (int) env('UPI_QR_TTL_MINUTES', 10),
+        'collect_ttl_minutes' => (int) env('UPI_COLLECT_TTL_MINUTES', 5),
+        // Demo simulator only: the payee shown in the QR code.
+        'demo_vpa' => env('UPI_DEMO_VPA', 'motogears@demo'),
+    ],
+
 ];

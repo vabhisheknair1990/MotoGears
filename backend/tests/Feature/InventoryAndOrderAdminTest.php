@@ -21,7 +21,7 @@ class InventoryAndOrderAdminTest extends TestCase
         $this->postJson($this->api('cart/items'), ['product_id' => $p->id, 'quantity' => $qty]);
         $order = $this->postJson($this->api('orders'), [
             'shipping_address_id' => $this->address($customer)->id, 'shipping_method' => 'standard', 'payment_method' => $method,
-            'payment_details' => $method === 'demo_upi' ? ['upi_id' => 'ok@upi'] : null,
+            'payment_details' => $method === 'demo_card' ? ['card_number' => '4111 1111 1111 1111', 'card_name' => 'Test', 'expiry' => '12/40', 'cvv' => '123'] : null,
         ])->assertCreated()->json('data.order');
 
         return [$order, $p, $customer];
@@ -65,7 +65,7 @@ class InventoryAndOrderAdminTest extends TestCase
 
     public function test_admin_cancel_releases_reservation(): void
     {
-        [$order, $p] = $this->placeOrder(qty: 3, stock: 5, method: 'demo_upi');
+        [$order, $p] = $this->placeOrder(qty: 3, stock: 5, method: 'demo_card');
         $this->actingAsStaff(Role::ADMIN);
 
         $this->patchJson($this->api("admin/orders/{$order['id']}/status"), ['status' => 'cancelled', 'comment' => 'Out of service area'])

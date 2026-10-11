@@ -16,7 +16,11 @@ class PaymentManager
         'demo_card' => DemoCardGateway::class,
         'demo_upi' => DemoUpiGateway::class,
         'razorpay' => RazorpayGateway::class,
+        'upi' => UpiGateway::class,
     ];
+
+    /** Order shown at checkout. */
+    private const DISPLAY_ORDER = [PaymentMethod::Upi, PaymentMethod::Razorpay, PaymentMethod::CashOnDelivery, PaymentMethod::DemoCard, PaymentMethod::DemoUpi];
 
     public function gateway(PaymentMethod|string $method): PaymentGateway
     {
@@ -86,13 +90,16 @@ class PaymentManager
             'code' => $m->value,
             'label' => $m->label(),
             'description' => $m->description(),
-        ], array_filter(PaymentMethod::cases(), fn (PaymentMethod $m) => self::isOffered($m))));
+        ], array_filter(self::DISPLAY_ORDER, fn (PaymentMethod $m) => self::isOffered($m))));
     }
 
     public static function isOffered(PaymentMethod $method): bool
     {
         return match (true) {
             $method === PaymentMethod::Razorpay => app(Razorpay\RazorpayClient::class)->isConfigured(),
+            $method === PaymentMethod::Upi => app(Upi\UpiProviders::class)->current() !== null,
+            // Replaced by the in-page UPI method; kept so old orders still display and refund.
+            $method === PaymentMethod::DemoUpi => false,
             $method->isDemo() => (bool) config('payments.demo_methods', true),
             default => true,
         };

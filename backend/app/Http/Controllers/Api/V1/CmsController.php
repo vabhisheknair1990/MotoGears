@@ -85,6 +85,8 @@ class CmsController extends Controller
         return $this->ok(array_merge($settings->publicSettings(), [
             // Which payment options exist (used by "retry payment" screens outside checkout).
             'payment_methods' => \App\Services\Payments\PaymentManager::methodOptions(),
+            // Unpaid online orders are released after this long (shown on the payment page).
+            'unpaid_order_timeout_minutes' => (int) $settings->get('unpaid_order_timeout_minutes'),
         ]), 'Settings retrieved successfully');
     }
 }

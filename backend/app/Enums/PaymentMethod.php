@@ -8,6 +8,7 @@ enum PaymentMethod: string
     case Razorpay = 'razorpay';
     case DemoCard = 'demo_card';
     case DemoUpi = 'demo_upi';
+    case Upi = 'upi';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum PaymentMethod: string
             self::Razorpay => 'Razorpay',
             self::DemoCard => 'Card (Demo)',
             self::DemoUpi => 'UPI (Demo)',
+            self::Upi => 'UPI',
         };
     }
 
@@ -26,6 +28,7 @@ enum PaymentMethod: string
             self::Razorpay => 'UPI, credit/debit cards, net banking and wallets — secure checkout by Razorpay.',
             self::DemoCard => 'Simulated card payment. Use 4111 1111 1111 1111 for success, 4000 0000 0000 0002 to simulate a decline.',
             self::DemoUpi => 'Simulated UPI payment. Use success@upi for success, failure@upi to simulate a failure.',
+            self::Upi => 'Scan a QR code with any UPI app, or enter your UPI ID and approve the request.',
         };
     }
 
@@ -33,6 +36,12 @@ enum PaymentMethod: string
     public function isRedirectFlow(): bool
     {
         return $this === self::Razorpay;
+    }
+
+    /** Paid outside our page (Razorpay window or a UPI app): stays pending until confirmed. */
+    public function awaitsConfirmation(): bool
+    {
+        return in_array($this, [self::Razorpay, self::Upi], true);
     }
 
     public function isDemo(): bool
@@ -43,7 +52,7 @@ enum PaymentMethod: string
     /** Methods a customer can use to (re)try paying an unpaid online order. */
     public static function onlineValues(): array
     {
-        return [self::Razorpay->value, self::DemoCard->value, self::DemoUpi->value];
+        return [self::Upi->value, self::Razorpay->value, self::DemoCard->value, self::DemoUpi->value];
     }
 
     public static function values(): array

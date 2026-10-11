@@ -43,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('track', fn (Request $r) => [Limit::perMinute(6)->by('track:'.$r->ip()), Limit::perHour(30)->by('track-h:'.$r->ip())]);
         RateLimiter::for('guest-orders', fn (Request $r) => Limit::perMinute(60)->by('guest:'.$r->ip()));
         RateLimiter::for('uploads', fn (Request $r) => Limit::perMinute(20)->by($r->user()?->id ?: $r->ip()));
+        // In-page UPI: starting QR codes / collect requests, and the page's status polling (every ~3s).
+        RateLimiter::for('upi', fn (Request $r) => Limit::perMinute(20)->by('upi:'.($r->user()?->id ?: $r->ip())));
+        RateLimiter::for('upi-status', fn (Request $r) => Limit::perMinute(60)->by('upi-status:'.($r->user()?->id ?: $r->ip()).':'.$r->route('order')));
         RateLimiter::for('checkout', fn (Request $r) => Limit::perMinute(10)->by($r->user()?->id ?: $r->ip()));
     }
 }

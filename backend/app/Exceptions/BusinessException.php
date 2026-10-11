@@ -10,7 +10,8 @@ use RuntimeException;
  */
 class BusinessException extends RuntimeException
 {
-    public function __construct(string $message, public readonly int $status = 422, public readonly array $errors = [])
+    /** @param  array  $extra  additional top-level fields for the client (e.g. a fallback hint) */
+    public function __construct(string $message, public readonly int $status = 422, public readonly array $errors = [], public readonly array $extra = [])
     {
         parent::__construct($message);
     }

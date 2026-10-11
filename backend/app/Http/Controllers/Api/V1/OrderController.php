@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\PaymentMethod;
-use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shop\PayOrderRequest;
 use App\Http\Requests\Shop\PlaceOrderRequest;
 use App\Http\Resources\OrderResource;
-use App\Http\Resources\PaymentResource;
 use App\Models\Order;
 use App\Models\Review;
 use App\Services\InvoiceService;
 use App\Services\OrderService;
-use App\Services\Payments\Razorpay\RazorpayPaymentService;
+use App\Services\Payments\PaymentPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -21,7 +19,7 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
-    public function __construct(private OrderService $orders, private InvoiceService $invoices, private RazorpayPaymentService $razorpay) {}
+    public function __construct(private OrderService $orders, private InvoiceService $invoices, private PaymentPayload $payload) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -38,27 +36,8 @@ class OrderController extends Controller
     public function store(PlaceOrderRequest $request): JsonResponse
     {
         $result = $this->orders->placeFromCart($request->user(), $request->validated(), $request->ip());
-        $order = $result['order']->load(['items', 'statusHistory', 'payment']);
-        $payment = $result['payment'];
 
-        $awaitingGateway = $payment->status === PaymentStatus::Pending && PaymentMethod::from($payment->method)->isRedirectFlow();
-        $message = match (true) {
-            $payment->status === PaymentStatus::Success => 'Order placed successfully',
-            $awaitingGateway => 'Order created — complete the payment in the Razorpay window',
-            $payment->status === PaymentStatus::Pending => 'Order placed successfully — pay on delivery',
-            default => 'Order created but payment failed: '.$payment->failure_reason,
-        };
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => [
-                'order' => (new OrderResource($order))->resolve($request),
-                'payment' => (new PaymentResource($payment))->resolve($request),
-                'payment_successful' => $payment->status !== PaymentStatus::Failed && ! $awaitingGateway,
-                'razorpay' => $awaitingGateway ? $this->razorpay->checkoutOptions($order, $payment) : null,
-            ],
-        ], 201);
+        return $this->payload->placed($request, $result['order'], $result['payment']);
     }
 
     /** Accepts the numeric id or the order number. */
@@ -89,19 +68,8 @@ class OrderController extends Controller
         $model = $this->find($order);
         $this->authorize('pay', $model);
         $payment = $this->orders->pay($model, PaymentMethod::from($request->payment_method), $request->input('payment_details') ?? [], $request->user());
-        $ok = $payment->status === PaymentStatus::Success;
-        $awaitingGateway = $payment->status === PaymentStatus::Pending && PaymentMethod::from($payment->method)->isRedirectFlow();
 
-        return response()->json([
-            'success' => $ok || $awaitingGateway,
-            'message' => $ok ? 'Payment successful' : ($awaitingGateway ? 'Complete the payment in the Razorpay window' : 'Payment failed: '.$payment->failure_reason),
-            'data' => [
-                'order' => (new OrderResource($model->fresh()->load(['items', 'statusHistory', 'payment'])))->resolve($request),
-                'payment' => (new PaymentResource($payment))->resolve($request),
-                'payment_successful' => $ok,
-                'razorpay' => $awaitingGateway ? $this->razorpay->checkoutOptions($model, $payment) : null,
-            ],
-        ], $ok || $awaitingGateway ? 200 : 402);
+        return $this->payload->retried($request, $model, $payment);
     }
 
     /** Structured invoice data (Angular renders it for view / print). */

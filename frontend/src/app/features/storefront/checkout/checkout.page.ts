@@ -78,9 +78,8 @@ export class CheckoutPage {
     expiry: ['12/29', [Validators.required, Validators.pattern(/^(0[1-9]|1[0-2])\/?[0-9]{2}$/)]],
     cvv: ['123', [Validators.required, Validators.pattern(/^[0-9]{3,4}$/)]],
   });
-  protected readonly upi = this.fb.nonNullable.group({
-    upi_id: ['success@upi', [Validators.required, Validators.pattern(/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/)]],
-  });
+  /** The first visit picks the first offered method (UPI when available); later reloads keep the choice. */
+  private paymentChosen = false;
 
   constructor() {
     inject(SeoService).set({ title: 'Checkout' });
@@ -99,6 +98,11 @@ export class CheckoutPage {
           this.addressId.set((s.addresses.find((a) => a.is_default) ?? s.addresses[0]).id);
         }
         if (!s.addresses.length && !this.isGuest()) this.addingAddress.set(true);
+        const offered = s.payment_methods.filter((m) => m.available);
+        if (!this.paymentChosen || !offered.some((m) => m.code === this.payment())) {
+          this.paymentChosen = true;
+          if (offered[0]) this.payment.set(offered[0].code);
+        }
         const user = s.addresses[0]?.name;
         if (user && !this.card.value.card_name) this.card.patchValue({ card_name: user });
       },
@@ -164,7 +168,7 @@ export class CheckoutPage {
       return;
     }
     if (this.step() === 2) {
-      const form = this.payment() === 'demo_card' ? this.card : this.payment() === 'demo_upi' ? this.upi : null;
+      const form = this.payment() === 'demo_card' ? this.card : null;
       if (form && form.invalid) {
         form.markAllAsTouched();
         return;
@@ -194,7 +198,7 @@ export class CheckoutPage {
     this.placing.set(true);
     this.placeError.set(null);
     this.emailServerError.set(null);
-    const details = this.payment() === 'demo_card' ? this.card.getRawValue() : this.payment() === 'demo_upi' ? this.upi.getRawValue() : null;
+    const details = this.payment() === 'demo_card' ? this.card.getRawValue() : null;
     const common = {
       billing_same_as_shipping: true,
       shipping_method: this.shipping(),
@@ -237,6 +241,12 @@ export class CheckoutPage {
           return;
         }
         this.placing.set(false);
+        if (result.upi) {
+          // Order + stock are reserved; the next page shows the QR code / UPI ID request and waits for the payment.
+          this.toast.info('Order reserved — complete your UPI payment');
+          void this.router.navigate(['/order-success', number], { queryParams: query() });
+          return;
+        }
         if (result.payment_successful) {
           this.toast.success('Order placed successfully');
         } else {

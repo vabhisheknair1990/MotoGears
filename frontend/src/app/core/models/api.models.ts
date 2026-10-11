@@ -230,9 +230,33 @@ export type AddressInput = Omit<Address, 'id' | 'is_default'> & { is_default?: b
 export type AddressSnapshot = Omit<Address, 'id' | 'label' | 'is_default'>;
 
 export interface ShippingMethod { code: 'standard' | 'express'; label: string; description: string; eta_days: [number, number]; cost: number }
-export type PaymentCode = 'cod' | 'razorpay' | 'demo_card' | 'demo_upi';
+export type PaymentCode = 'cod' | 'upi' | 'razorpay' | 'demo_card' | 'demo_upi';
 export type OnlinePaymentCode = Exclude<PaymentCode, 'cod'>;
 export interface PaymentMethodOption { code: PaymentCode; label: string; description: string; available: boolean; unavailable_reason?: string }
+
+/** In-page UPI: what the payment page needs before starting. */
+export interface UpiInfo { available: boolean; demo: boolean; amount: number; payee: string; qr_ttl_seconds: number; collect_ttl_seconds: number }
+
+/** State of an in-page UPI payment, as reported by Laravel (which asks the payment provider). */
+export type UpiStatus = 'idle' | 'pending' | 'paid' | 'failed' | 'expired';
+export interface UpiSession {
+  status: UpiStatus;
+  message: string | null;
+  flow: 'intent' | 'collect' | null;
+  vpa: string | null;
+  payer_name: string | null;
+  expires_at: string | null;
+  expires_in: number | null;
+  amount: number;
+  payee: string;
+  demo: boolean;
+  transaction_id: string | null;
+  /** QR responses: the code as an SVG data URI, and the upi://pay link it encodes. */
+  qr?: string;
+  link?: string;
+  /** Paid / failed responses carry the updated order. */
+  order?: Order;
+}
 
 /** Public options for Razorpay checkout.js, produced by Laravel (never contains the key secret). */
 export interface RazorpayCheckoutOptions {
@@ -260,7 +284,7 @@ export interface OrderItem {
 export interface Payment {
   id: number; method: string; method_label: string; gateway: string; transaction_id: string | null; amount: number; currency: string;
   status: 'initiated' | 'pending' | 'success' | 'failed' | 'refunded'; failure_reason: string | null;
-  details: { brand?: string; last4?: string; vpa?: string; bank?: string; wallet?: string; rzp_method?: string; collect_on_delivery?: boolean; refund_id?: string };
+  details: { brand?: string; last4?: string; vpa?: string; bank?: string; wallet?: string; rzp_method?: string; collect_on_delivery?: boolean; refund_id?: string; upi_flow?: 'intent' | 'collect'; payer_name?: string };
   paid_at: string | null; created_at: string;
 }
 
@@ -311,6 +335,8 @@ export interface Order {
 
 export interface PlaceOrderResult {
   order: Order; payment: Payment; payment_successful: boolean; razorpay?: RazorpayCheckoutOptions | null;
+  /** Set when the order waits for an in-page UPI payment (QR code / UPI ID). */
+  upi?: UpiInfo | null;
   /** Guest orders only: the secret that opens the order (also in the confirmation email link). */
   guest_token?: string | null;
 }
@@ -414,5 +440,6 @@ export interface StoreSettings {
   store_name: string; store_tagline: string; support_phone: string; support_email: string; store_address: string;
   currency: string; free_shipping_threshold: number; standard_shipping_cost?: number; express_shipping_cost?: number; cod_enabled?: boolean;
   guest_checkout_enabled?: boolean;
+  unpaid_order_timeout_minutes?: number;
   payment_methods?: { code: PaymentCode; label: string; description: string }[];
 }

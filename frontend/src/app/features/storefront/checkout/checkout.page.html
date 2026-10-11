@@ -109,13 +109,13 @@
             <div class="card card-body">
               <h2 class="h mb-8">Payment</h2>
               @if (hasDemoMethods()) {
-                <div class="alert alert-info mb-16"><app-icon name="info" [size]="18" /> "Demo" card and UPI payments are simulated — no real money is charged.</div>
+                <div class="alert alert-info mb-16"><app-icon name="info" [size]="18" /> Demo payments are simulated — no real money is charged.</div>
               }
               <div class="opts">
                 @for (pm of summary()!.payment_methods; track pm.code) {
                   <label class="opt" [class.on]="pm.code === payment()" [class.disabled]="!pm.available">
                     <input type="radio" name="pay" [checked]="pm.code === payment()" [disabled]="!pm.available" (change)="payment.set(pm.code)" />
-                    <app-icon [name]="pm.code === 'cod' ? 'wallet' : pm.code === 'razorpay' ? 'shield' : pm.code === 'demo_card' ? 'card' : 'phone'" [size]="22" />
+                    <app-icon [name]="pm.code === 'cod' ? 'wallet' : pm.code === 'razorpay' ? 'shield' : pm.code === 'demo_card' ? 'card' : pm.code === 'upi' ? 'qr' : 'phone'" [size]="22" />
                     <div class="grow"><strong>{{ pm.label }}</strong><span class="text-sm text-muted">{{ pm.available ? pm.description : pm.unavailable_reason }}</span></div>
                   </label>
                   @if (pm.code === payment() && pm.code === 'razorpay') {
@@ -132,11 +132,10 @@
                       <div class="field"><label class="label" for="cc-cvv">CVV</label><input id="cc-cvv" class="input mono" formControlName="cvv" type="password" inputmode="numeric" maxlength="4" autocomplete="off" [class.invalid]="cardError('cvv')" /></div>
                     </form>
                   }
-                  @if (pm.code === payment() && pm.code === 'demo_upi') {
-                    <form class="pay-form" [formGroup]="upi">
-                      <div class="field"><label class="label" for="upi-id">UPI ID</label><input id="upi-id" class="input" formControlName="upi_id" placeholder="name@bank" [class.invalid]="upi.controls.upi_id.invalid && upi.controls.upi_id.touched" />
-                        <span class="hint">Use success&#64;upi to succeed or failure&#64;upi to simulate a failed payment.</span></div>
-                    </form>
+                  @if (pm.code === payment() && pm.code === 'upi') {
+                    <div class="pay-form rzp-note text-sm">
+                      <app-icon name="qr" [size]="16" /> After you place the order, scan the QR code with Google Pay, PhonePe, Paytm or any UPI app — or enter your UPI ID and approve the request. Your items stay reserved while you pay, and the order is confirmed the moment the payment arrives.
+                    </div>
                   }
                 }
               </div>
@@ -153,7 +152,7 @@
                 <div><h4>Shipping</h4><p>{{ selectedShipping()?.label }}<br /><span class="text-muted text-sm">{{ selectedShipping()?.description }}</span></p><button class="link text-sm" (click)="step.set(1)">Change</button></div>
                 <div><h4>Payment</h4><p>{{ paymentOption()?.label }}
                   @if (payment() === 'demo_card') { <br /><span class="text-muted text-sm mono">•••• {{ (card.value.card_number ?? '').replaceAll(' ', '').slice(-4) }}</span> }
-                  @if (payment() === 'demo_upi') { <br /><span class="text-muted text-sm">{{ upi.value.upi_id }}</span> }
+                  @if (payment() === 'upi') { <br /><span class="text-muted text-sm">QR code or UPI ID — on the next page</span> }
                 </p><button class="link text-sm" (click)="step.set(2)">Change</button></div>
               </div>
               <h4 class="mt-16">Items</h4>
@@ -177,7 +176,7 @@
             <button class="btn btn-primary btn-lg" (click)="next()" [disabled]="step() === 0 && (isGuest() ? editingGuestAddress() : addingAddress())">Continue <app-icon name="arrow-right" [size]="16" /></button>
           } @else {
             <button class="btn btn-primary btn-lg" (click)="placeOrder()" [disabled]="placing() || !cart()?.is_checkout_ready">
-              @if (placing()) { <span class="spinner"></span> {{ payment() === 'razorpay' ? 'Waiting for payment…' : 'Placing order…' }} } @else { <app-icon name="lock" [size]="16" /> {{ payment() === 'razorpay' ? 'Pay securely' : 'Place order' }} · {{ cart()!.grand_total | inr }} }
+              @if (placing()) { <span class="spinner"></span> {{ payment() === 'razorpay' ? 'Waiting for payment…' : 'Placing order…' }} } @else { <app-icon name="lock" [size]="16" /> {{ payment() === 'razorpay' ? 'Pay securely' : payment() === 'upi' ? 'Place order & pay by UPI' : 'Place order' }} · {{ cart()!.grand_total | inr }} }
             </button>
           }
         </div>

@@ -88,10 +88,13 @@
           <hr />
           <div class="row between grand"><span>Total</span><span>{{ c.grand_total | inr }}</span></div>
           @if (c.savings > 0) { <p class="savings">You save {{ c.savings | inr }} on this order</p> }
-          <a class="btn btn-primary btn-lg btn-block" [routerLink]="auth.isLoggedIn() ? '/checkout' : '/login'" [queryParams]="auth.isLoggedIn() ? null : { returnUrl: '/checkout' }"
+          <a class="btn btn-primary btn-lg btn-block" [routerLink]="canCheckout() ? '/checkout' : '/login'" [queryParams]="canCheckout() ? null : { returnUrl: '/checkout' }"
              [attr.aria-disabled]="!c.is_checkout_ready" [class.disabled]="!c.is_checkout_ready">
-            <app-icon name="lock" [size]="16" /> {{ auth.isLoggedIn() ? 'Proceed to checkout' : 'Log in to checkout' }}
+            <app-icon name="lock" [size]="16" /> {{ auth.isLoggedIn() ? 'Proceed to checkout' : guestCheckout() ? 'Checkout' : 'Log in to checkout' }}
           </a>
+          @if (!auth.isLoggedIn() && guestCheckout()) {
+            <p class="text-sm text-muted center mb-0">No account needed — or <a class="link" routerLink="/login" [queryParams]="{ returnUrl: '/checkout' }">log in</a> for saved addresses.</p>
+          }
           <a class="btn btn-block btn-ghost" routerLink="/shop">Continue shopping</a>
         </div>
       </aside>
@@ -99,7 +102,7 @@
 
     <div class="sticky-cart hide-desktop">
       <div><span class="text-xs text-muted">Total</span><strong>{{ c.grand_total | inr }}</strong></div>
-      <a class="btn btn-primary" [routerLink]="auth.isLoggedIn() ? '/checkout' : '/login'" [queryParams]="auth.isLoggedIn() ? null : { returnUrl: '/checkout' }">Checkout</a>
+      <a class="btn btn-primary" [routerLink]="canCheckout() ? '/checkout' : '/login'" [queryParams]="canCheckout() ? null : { returnUrl: '/checkout' }">Checkout</a>
     </div>
   }
 </div>

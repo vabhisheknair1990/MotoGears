@@ -40,8 +40,11 @@ export const routes: Routes = [
       { path: 'products/:slug', loadComponent: () => import('./features/storefront/product/product-detail.page').then((m) => m.ProductDetailPage) },
       { path: 'vehicles', loadComponent: () => import('./features/storefront/vehicles/vehicles.page').then((m) => m.VehiclesPage) },
       { path: 'cart', loadComponent: () => import('./features/storefront/cart/cart.page').then((m) => m.CartPage) },
-      { path: 'checkout', canActivate: [authGuard], loadComponent: () => import('./features/storefront/checkout/checkout.page').then((m) => m.CheckoutPage) },
-      { path: 'order-success/:orderNumber', canActivate: [authGuard], loadComponent: () => import('./features/storefront/checkout/order-success.page').then((m) => m.OrderSuccessPage) },
+      { path: 'checkout', loadComponent: () => import('./features/storefront/checkout/checkout.page').then((m) => m.CheckoutPage) },
+      { path: 'order-success/:orderNumber', loadComponent: () => import('./features/storefront/checkout/order-success.page').then((m) => m.OrderSuccessPage) },
+      // Guest orders: secret link from the confirmation email, and lookup by number + email.
+      { path: 'order/:orderNumber', loadComponent: () => import('./features/storefront/orders/guest-order.page').then((m) => m.GuestOrderPage) },
+      { path: 'track-order', loadComponent: () => import('./features/storefront/orders/track-order.page').then((m) => m.TrackOrderPage) },
       { path: 'account', canActivate: [authGuard], loadChildren: () => import('./features/storefront/account/account.routes').then((m) => m.ACCOUNT_ROUTES) },
       { path: 'login', canActivate: [guestGuard], loadComponent: () => import('./features/storefront/auth/login.page').then((m) => m.LoginPage) },
       { path: 'register', canActivate: [guestGuard], loadComponent: () => import('./features/storefront/auth/register.page').then((m) => m.RegisterPage) },

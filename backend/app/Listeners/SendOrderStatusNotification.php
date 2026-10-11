@@ -9,6 +9,6 @@ class SendOrderStatusNotification
 {
     public function handle(OrderStatusChanged $event): void
     {
-        $event->order->user?->notify(new OrderStatusChangedNotification($event->order, $event->to));
+        $event->order->loadMissing('user')->notifiable()?->notify(new OrderStatusChangedNotification($event->order, $event->to));
     }
 }

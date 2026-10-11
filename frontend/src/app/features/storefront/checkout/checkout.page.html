@@ -4,19 +4,66 @@
     <h1>Checkout</h1>
   </div>
 
-  @if (loading() && !summary()) {
+  @if (guestDisabled()) {
+    <div class="card card-body guest-off">
+      <app-icon name="user" [size]="32" />
+      <h2 class="h">Log in to check out</h2>
+      <p class="text-muted">Please log in or create a free account to place your order. Your cart is saved and moves to your account.</p>
+      <div class="row center gap-8">
+        <a class="btn btn-primary" routerLink="/login" [queryParams]="{ returnUrl: '/checkout' }">Log in</a>
+        <a class="btn" routerLink="/register" [queryParams]="{ returnUrl: '/checkout' }">Create account</a>
+      </div>
+    </div>
+  } @else if (loading() && !summary()) {
     <div class="skeleton" style="height: 320px"></div>
   } @else if (loadError()) {
     <div class="alert alert-danger">{{ loadError() }} <button class="btn btn-sm" (click)="load()">Retry</button></div>
   } @else if (!cart()?.items?.length) {
     <div class="card"><app-empty-state icon="cart" title="Your cart is empty." message="Add some parts before checking out."><a class="btn btn-primary" routerLink="/shop">Shop now</a></app-empty-state></div>
   } @else {
-    <app-checkout-stepper [steps]="steps" [current]="step()" (go)="goTo($event)" />
+    <app-checkout-stepper [steps]="steps()" [current]="step()" (go)="goTo($event)" />
     <div class="co-grid">
       <section>
         @switch (step()) {
-          <!-- STEP 1: ADDRESS -->
+          <!-- STEP 1: ADDRESS (guest: contact details + typed address) -->
           @case (0) {
+            @if (isGuest()) {
+            <div class="card card-body guest">
+              <div class="row between wrap gap-8 mb-16">
+                <h2 class="h">Contact details</h2>
+                <span class="badge">Guest checkout</span>
+              </div>
+              <div class="login-hint text-sm">
+                <app-icon name="user" [size]="16" />
+                <span>Have an account? <a class="link" routerLink="/login" [queryParams]="{ returnUrl: '/checkout' }">Log in</a> to use saved addresses and see this order in My orders. Your cart comes with you.</span>
+              </div>
+              <div class="field mt-16">
+                <label class="label" for="g-email">Email address <span class="req">*</span></label>
+                <input id="g-email" type="email" class="input" [formControl]="email" autocomplete="email" inputmode="email" placeholder="you@example.com"
+                       [class.invalid]="!!emailError()" [attr.aria-invalid]="!!emailError()" aria-describedby="g-email-hint" (input)="emailServerError.set(null)" />
+                @if (emailError(); as e) { <span class="error-text" role="alert">{{ e }}</span> }
+                <span id="g-email-hint" class="hint">Your order confirmation, invoice and tracking link are sent here. No account needed.</span>
+              </div>
+            </div>
+            <div class="card card-body mt-16">
+              <h2 class="h mb-16">Delivery address</h2>
+              @if (guestAddress() && !editingGuestAddress()) {
+                @let a = guestAddress()!;
+                <div class="addr on static">
+                  <app-icon name="pin" [size]="18" />
+                  <div class="grow">
+                    <strong>{{ a.name }}</strong>
+                    <p>{{ a.line1 }}@if (a.line2) {, {{ a.line2 }}}@if (a.landmark) {, {{ a.landmark }}}<br />{{ a.city }}, {{ a.state }} – {{ a.postal_code }}</p>
+                    <span class="text-sm text-muted">Phone: {{ a.phone }}</span>
+                  </div>
+                  <button type="button" class="btn btn-sm" (click)="editingGuestAddress.set(true)"><app-icon name="edit" [size]="14" /> Edit</button>
+                </div>
+              } @else {
+                <app-address-form [value]="$any(guestAddress())" [showDefault]="false" [cancellable]="!!guestAddress()" submitLabel="Use this address"
+                                  [serverErrors]="guestAddressErrors()" (saved)="useGuestAddress($event)" (cancelled)="editingGuestAddress.set(false)" />
+              }
+            </div>
+            } @else {
             <div class="card card-body">
               <div class="row between mb-16"><h2 class="h">Delivery address</h2>
                 @if (!addingAddress() && summary()!.addresses.length) { <button class="btn btn-sm" (click)="addingAddress.set(true)"><app-icon name="plus" [size]="15" /> Add new</button> }
@@ -39,6 +86,7 @@
                 </div>
               }
             </div>
+            }
           }
           <!-- STEP 2: SHIPPING -->
           @case (1) {
@@ -100,7 +148,7 @@
               <h2 class="h mb-16">Review your order</h2>
               <div class="rev-grid">
                 <div><h4>Deliver to</h4>
-                  @if (selectedAddress(); as a) { <p><strong>{{ a.name }}</strong><br />{{ a.line1 }}@if (a.line2) {, {{ a.line2 }}}<br />{{ a.city }}, {{ a.state }} – {{ a.postal_code }}<br />{{ a.phone }}</p> }
+                  @if (selectedAddress(); as a) { <p><strong>{{ a.name }}</strong><br />{{ a.line1 }}@if (a.line2) {, {{ a.line2 }}}<br />{{ a.city }}, {{ a.state }} – {{ a.postal_code }}<br />{{ a.phone }}@if (isGuest()) {<br /><span class="text-muted">{{ email.value }}</span>}</p> }
                   <button class="link text-sm" (click)="step.set(0)">Change</button></div>
                 <div><h4>Shipping</h4><p>{{ selectedShipping()?.label }}<br /><span class="text-muted text-sm">{{ selectedShipping()?.description }}</span></p><button class="link text-sm" (click)="step.set(1)">Change</button></div>
                 <div><h4>Payment</h4><p>{{ paymentOption()?.label }}
@@ -126,7 +174,7 @@
         <div class="nav-btns">
           @if (step() > 0) { <button class="btn btn-lg" (click)="back()"><app-icon name="arrow-left" [size]="16" /> Back</button> } @else { <span></span> }
           @if (step() < 3) {
-            <button class="btn btn-primary btn-lg" (click)="next()" [disabled]="addingAddress() && step() === 0">Continue <app-icon name="arrow-right" [size]="16" /></button>
+            <button class="btn btn-primary btn-lg" (click)="next()" [disabled]="step() === 0 && (isGuest() ? editingGuestAddress() : addingAddress())">Continue <app-icon name="arrow-right" [size]="16" /></button>
           } @else {
             <button class="btn btn-primary btn-lg" (click)="placeOrder()" [disabled]="placing() || !cart()?.is_checkout_ready">
               @if (placing()) { <span class="spinner"></span> {{ payment() === 'razorpay' ? 'Waiting for payment…' : 'Placing order…' }} } @else { <app-icon name="lock" [size]="16" /> {{ payment() === 'razorpay' ? 'Pay securely' : 'Place order' }} · {{ cart()!.grand_total | inr }} }

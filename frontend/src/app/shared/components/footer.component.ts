@@ -38,7 +38,7 @@ import { IconComponent } from './icon.component';
         </div>
         <div>
           <h4>Help</h4>
-          <a routerLink="/account/orders">Track order</a>
+          <a routerLink="/track-order">Track order</a>
           <a routerLink="/faq">FAQs</a>
           <a routerLink="/page/shipping-policy">Shipping policy</a>
           <a routerLink="/page/returns-policy">Returns & refunds</a>

@@ -7,7 +7,7 @@
     </div>
     <div class="row gap-16 tb-right">
       <a routerLink="/contact" class="row gap-4 hide-mobile"><app-icon name="phone" [size]="15" /> Support</a>
-      <a routerLink="/account/orders" class="row gap-4"><app-icon name="package" [size]="15" /> Track order</a>
+      <a [routerLink]="auth.isLoggedIn() ? '/account/orders' : '/track-order'" class="row gap-4"><app-icon name="package" [size]="15" /> Track order</a>
       <a routerLink="/shop" [queryParams]="{ sort: 'discount', discount: 20 }" class="row gap-4 offers"><app-icon name="tag" [size]="15" /> Offers</a>
     </div>
   </div>
@@ -120,6 +120,7 @@
     <a routerLink="/blog">Blog</a>
     <a routerLink="/faq">FAQ</a>
     <a routerLink="/contact">Contact</a>
+    <a [routerLink]="auth.isLoggedIn() ? '/account/orders' : '/track-order'">Track order</a>
     <hr />
     @if (auth.isLoggedIn()) {
       <a routerLink="/account">My account</a>

@@ -60,8 +60,8 @@ export class ApiService {
     return this.http.post<ApiEnvelope<T>>(this.url(path), form);
   }
 
-  blob(path: string, query?: Query): Observable<Blob> {
-    return this.http.get(this.url(path), { params: toParams(query), responseType: 'blob' });
+  blob(path: string, query?: Query, context?: HttpContext): Observable<Blob> {
+    return this.http.get(this.url(path), { params: toParams(query), responseType: 'blob', context });
   }
 }
 

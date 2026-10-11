@@ -24,6 +24,7 @@ const META: Record<string, { label: string; hint?: string; prefix?: string; suff
   cod_max_order_value: { label: 'COD limit (max order value)', prefix: '₹', min: 0 },
   unpaid_order_timeout_minutes: { label: 'Cancel unpaid online orders after', suffix: 'min', min: 5, max: 10080, hint: 'Reserved stock is released when an unpaid order is auto-cancelled.' },
   max_quantity_per_item: { label: 'Max quantity per cart line', min: 1, max: 100 },
+  guest_checkout_enabled: { label: 'Allow guest checkout', hint: 'Shoppers can order with just an email address, without creating an account.' },
 };
 
 const GROUP_TITLES: Record<string, { title: string; icon: string }> = {

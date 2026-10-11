@@ -76,6 +76,11 @@ export class AuthService {
     return this.api.get<User>(this.store.isStaff() ? 'admin/auth/me' : 'me').pipe(tap((u) => this.store.setUser(u)));
   }
 
+  /** Signs in with a token issued elsewhere (e.g. creating an account from a guest order). */
+  applySession(payload: AuthPayload): User {
+    return this.onAuthenticated(payload);
+  }
+
   private onAuthenticated(payload: AuthPayload, syncShop = true): User {
     this.store.setSession(payload.token, payload.user);
     if (syncShop) {

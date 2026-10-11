@@ -1,0 +1,98 @@
+<div class="container guest-order">
+  @if (loading()) {
+    <div class="skeleton" style="height: 420px"></div>
+  } @else if (!order()) {
+    <div class="card">
+      <app-empty-state icon="package" title="We couldn't open this order" message="Use the link in your order confirmation email, or find it with your order number and email address.">
+        <a class="btn btn-primary" routerLink="/track-order" [queryParams]="{ order: orderNumber() }">Track order</a>
+      </app-empty-state>
+    </div>
+  } @else {
+    @let o = order()!;
+    <a routerLink="/track-order" class="text-sm text-muted back"><app-icon name="arrow-left" [size]="14" /> Track another order</a>
+    <div class="head">
+      <div>
+        <h1>Order <span class="mono">{{ o.order_number }}</span></h1>
+        <p class="text-muted mb-0">Placed {{ o.placed_at | appDate: true }} · {{ o.total_quantity }} item{{ o.total_quantity === 1 ? '' : 's' }}@if (o.customer?.email; as email) { · {{ email }} }</p>
+      </div>
+      <app-status-badge [status]="o.status" [label]="o.status_label" />
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-sm" (click)="download()" [disabled]="downloading()">@if (downloading()) { <span class="spinner"></span> } @else { <app-icon name="download" [size]="15" /> } Download invoice</button>
+      @if (o.can_pay) { <a class="btn btn-sm btn-primary" [routerLink]="['/order-success', o.order_number]" [queryParams]="{ token: token() }"><app-icon name="card" [size]="15" /> Complete payment</a> }
+      @if (o.can_cancel) { <button class="btn btn-sm btn-danger" (click)="cancelOpen.set(true)"><app-icon name="x" [size]="15" /> Cancel order</button> }
+    </div>
+
+    <div class="od-grid">
+      <div class="stack gap-16">
+        <section class="card card-body">
+          <h3>Tracking</h3>
+          @if (o.tracking_number) {
+            <p class="track-no"><app-icon name="truck" [size]="16" /> {{ o.carrier }} · <span class="mono">{{ o.tracking_number }}</span></p>
+          }
+          <app-order-timeline [status]="o.status" [entries]="o.timeline ?? []" />
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h3>Items</h3></div>
+          @for (i of o.items ?? []; track i.id) {
+            <div class="item">
+              <img [src]="i.image" [alt]="i.product_name" class="img" />
+              <div class="grow">
+                @if (i.product_slug) { <a [routerLink]="['/products', i.product_slug]" class="fw-600">{{ i.product_name }}</a> } @else { <span class="fw-600">{{ i.product_name }}</span> }
+                <span class="text-xs text-muted">{{ i.brand_name }} · SKU {{ i.sku }}@if (i.part_number) { · Part {{ i.part_number }} }</span>
+                <span class="text-sm">{{ i.unit_price | inr }} × {{ i.quantity }}@if (i.discount > 0) { <span class="text-success"> (−{{ i.discount | inr }})</span> }</span>
+              </div>
+              <strong>{{ i.line_total | inr }}</strong>
+            </div>
+          }
+        </section>
+
+        @if (o.is_guest && token()) {
+          <app-guest-account-card [order]="o" [token]="token()!" (attached)="order.set($event)" />
+        }
+      </div>
+
+      <div class="stack gap-16">
+        <section class="card card-body totals">
+          <h3>Payment summary</h3>
+          <div class="row between"><span>Subtotal</span><span>{{ o.subtotal | inr }}</span></div>
+          @if (o.discount > 0) { <div class="row between text-success"><span>Discount @if (o.coupon_code) { ({{ o.coupon_code }}) }</span><span>−{{ o.discount | inr }}</span></div> }
+          <div class="row between"><span>Shipping ({{ o.shipping_method }})</span><span>{{ o.shipping > 0 ? (o.shipping | inr) : 'FREE' }}</span></div>
+          <div class="row between"><span>GST</span><span>{{ o.tax | inr }}</span></div>
+          <hr />
+          <div class="row between grand"><span>Total</span><span>{{ o.grand_total | inr }}</span></div>
+          <div class="pay">
+            <div class="row between"><span>{{ o.payment_method_label }}</span><app-status-badge [status]="o.payment_status" /></div>
+            @if (o.payment; as p) {
+              @if (p.details.last4) { <span class="text-xs text-muted">{{ p.details.brand }} •••• {{ p.details.last4 }}</span> }
+              @if (p.details.vpa) { <span class="text-xs text-muted">{{ p.details.vpa }}</span> }
+              @if (p.transaction_id) { <span class="text-xs text-muted mono">Txn {{ p.transaction_id }}</span> }
+              @if (p.failure_reason && o.payment_status === 'failed') { <span class="text-xs text-danger">{{ p.failure_reason }}</span> }
+            }
+          </div>
+        </section>
+        <section class="card card-body">
+          <h3>Shipping address</h3>
+          <p class="addr">{{ o.shipping_address.name }}<br />{{ o.shipping_address.line1 }}@if (o.shipping_address.line2) {, {{ o.shipping_address.line2 }}}<br />{{ o.shipping_address.city }}, {{ o.shipping_address.state }} – {{ o.shipping_address.postal_code }}<br />Phone: {{ o.shipping_address.phone }}</p>
+          @if (o.customer_notes) { <h3 class="mt-16">Notes</h3><p class="addr">{{ o.customer_notes }}</p> }
+        </section>
+        <p class="text-xs text-muted keep"><app-icon name="lock" [size]="13" /> This page is private to you — don't share its link. Lost it? Use <a class="link" routerLink="/track-order">Track order</a> with your order number and email.</p>
+      </div>
+    </div>
+
+    <app-modal [open]="cancelOpen()" title="Cancel this order?" size="sm" (close)="cancelOpen.set(false)">
+      <p class="text-muted mt-0">Items will be released back to stock. {{ o.payment_status === 'paid' ? 'Your payment will be refunded to the original method.' : '' }}</p>
+      <label class="label" for="reason">Reason (optional)</label>
+      <select id="reason" class="select mt-8" [(ngModel)]="cancelReason">
+        <option value="">Select a reason</option>
+        <option>Ordered by mistake</option><option>Found a better price</option><option>Delivery is too slow</option><option>Wrong part for my vehicle</option><option>Other</option>
+      </select>
+      <div modal-footer>
+        <button class="btn" (click)="cancelOpen.set(false)">Keep order</button>
+        <button class="btn btn-primary" (click)="cancel()" [disabled]="cancelling()">@if (cancelling()) { <span class="spinner"></span> } Cancel order</button>
+      </div>
+    </app-modal>
+  }
+</div>

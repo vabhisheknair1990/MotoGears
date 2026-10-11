@@ -39,6 +39,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('forms', fn (Request $r) => Limit::perMinute(5)->by($r->ip()));
         RateLimiter::for('search', fn (Request $r) => Limit::perMinute(90)->by($r->user()?->id ?: $r->ip()));
         RateLimiter::for('webhooks', fn (Request $r) => Limit::perMinute(300)->by('webhook:'.$r->ip()));
+        // Order number + email lookups: slow enough that guessing order numbers is pointless.
+        RateLimiter::for('track', fn (Request $r) => [Limit::perMinute(6)->by('track:'.$r->ip()), Limit::perHour(30)->by('track-h:'.$r->ip())]);
+        RateLimiter::for('guest-orders', fn (Request $r) => Limit::perMinute(60)->by('guest:'.$r->ip()));
         RateLimiter::for('uploads', fn (Request $r) => Limit::perMinute(20)->by($r->user()?->id ?: $r->ip()));
         RateLimiter::for('checkout', fn (Request $r) => Limit::perMinute(10)->by($r->user()?->id ?: $r->ip()));
     }

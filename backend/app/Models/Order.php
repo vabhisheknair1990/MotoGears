@@ -17,13 +17,17 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_number', 'user_id', 'status', 'payment_status', 'payment_method', 'shipping_method',
+        'order_number', 'user_id', 'customer_name', 'customer_email', 'customer_phone', 'is_guest', 'guest_token', 'status', 'payment_status', 'payment_method', 'shipping_method',
         'subtotal', 'discount', 'shipping_amount', 'tax', 'grand_total', 'currency', 'coupon_id', 'coupon_code',
         'billing_address', 'shipping_address', 'tracking_number', 'carrier', 'customer_notes', 'admin_notes',
         'ip_address', 'placed_at', 'shipped_at', 'delivered_at', 'cancelled_at',
     ];
 
+    /** The guest access token is a secret: never serialise it. */
+    protected $hidden = ['guest_token'];
+
     protected $casts = [
+        'is_guest' => 'boolean',
         'status' => OrderStatus::class,
         'payment_status' => OrderPaymentStatus::class,
         'payment_method' => PaymentMethod::class,
@@ -43,6 +47,34 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withTrashed();
+    }
+
+    /** True when $token is this guest order's access token (constant-time comparison). */
+    public function matchesGuestToken(?string $token): bool
+    {
+        return $this->guest_token !== null && is_string($token) && $token !== '' && hash_equals($this->guest_token, $token);
+    }
+
+    /** Where order emails go: the account if there is one, otherwise the guest's email. */
+    public function notifiable(): ?object
+    {
+        if ($this->user && ! $this->user->trashed()) {
+            return $this->user;
+        }
+
+        return $this->customer_email
+            ? \Illuminate\Support\Facades\Notification::route('mail', [$this->customer_email => $this->customer_name ?: $this->customer_email])
+            : null;
+    }
+
+    /** Storefront page for this order: the account page, or the guest's secret link. */
+    public function customerUrl(): string
+    {
+        $base = rtrim((string) config('app.frontend_url'), '/');
+
+        return $this->is_guest && $this->guest_token
+            ? $base.'/order/'.$this->order_number.'?token='.$this->guest_token
+            : $base.'/account/orders/'.$this->id;
     }
 
     public function items(): HasMany

@@ -32,3 +32,10 @@
 .grand { font-size: 18px; font-weight: 800; }
 .secure { display: flex; gap: 8px; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .rzp-note { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; margin: -4px 0 4px; background: var(--line-2); border-radius: var(--radius-sm); color: var(--ink-2); line-height: 1.5; }
+.guest-off { text-align: center; max-width: 560px; margin: 24px auto; display: grid; gap: 8px; justify-items: center; }
+.guest-off app-icon { color: var(--brand); }
+.login-hint { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; background: var(--surface-2, #f6f7f9); border-radius: var(--radius-sm); }
+.login-hint app-icon { flex: none; margin-top: 1px; color: var(--muted); }
+.addr.static { display: flex; gap: 12px; align-items: flex-start; cursor: default; }
+.addr.static app-icon { color: var(--brand); margin-top: 2px; flex: none; }
+.req { color: var(--danger, #dc2626); }

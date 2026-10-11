@@ -52,12 +52,18 @@ class OrderResource extends JsonResource
                     'by' => $isAdmin ? $h->user?->name : null,
                     'at' => $h->created_at?->toIso8601String(),
                 ])->values()),
-            'customer' => $this->whenLoaded('user', fn () => [
-                'id' => $this->user->id, 'name' => $this->user->name, 'email' => $this->user->email, 'phone' => $this->user->phone,
-            ]),
+            'is_guest' => (bool) $this->is_guest,
+            // Contact snapshot taken at checkout (the account's details for older orders).
+            'customer' => [
+                'id' => $this->user_id,
+                'name' => $this->customer_name ?? ($this->relationLoaded('user') ? $this->user?->name : null),
+                'email' => $this->customer_email ?? ($this->relationLoaded('user') ? $this->user?->email : null),
+                'phone' => $this->customer_phone ?? ($this->relationLoaded('user') ? $this->user?->phone : null),
+                'is_guest' => (bool) $this->is_guest,
+            ],
             'can_cancel' => $this->status->isCancellableByCustomer(),
             'can_pay' => $this->status === OrderStatus::Pending && $this->payment_status !== OrderPaymentStatus::Paid && $this->payment_method->value !== 'cod',
-            'can_review' => in_array($this->status, [OrderStatus::Confirmed, OrderStatus::Processing, OrderStatus::Packed, OrderStatus::Shipped, OrderStatus::OutForDelivery, OrderStatus::Delivered], true),
+            'can_review' => ! $this->is_guest && in_array($this->status, [OrderStatus::Confirmed, OrderStatus::Processing, OrderStatus::Packed, OrderStatus::Shipped, OrderStatus::OutForDelivery, OrderStatus::Delivered], true),
             'allowed_transitions' => $this->when($isAdmin, fn () => array_map(fn (OrderStatus $s) => ['value' => $s->value, 'label' => $s->label()], $this->status->allowedTransitions())),
             'placed_at' => $this->placed_at?->toIso8601String(),
             'shipped_at' => $this->shipped_at?->toIso8601String(),

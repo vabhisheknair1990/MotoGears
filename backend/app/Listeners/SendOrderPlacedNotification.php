@@ -9,6 +9,6 @@ class SendOrderPlacedNotification
 {
     public function handle(OrderPlaced $event): void
     {
-        $event->order->user?->notify(new OrderPlacedNotification($event->order));
+        $event->order->loadMissing('user')->notifiable()?->notify(new OrderPlacedNotification($event->order));
     }
 }

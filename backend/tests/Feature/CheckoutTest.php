@@ -89,7 +89,7 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.order.can_pay', true);
         $id = $declined->json('data.order.id');
 
-        $this->postJson($this->api("orders/{$id}/pay"), ['payment_method' => 'demo_upi', 'payment_details' => ['upi_id' => 'failure@upi']])
+        $this->postJson($this->api("orders/{$id}/pay"), ['payment_method' => 'demo_card', 'payment_details' => ['card_number' => '4000 0000 0000 0002', 'card_name' => 'Test', 'expiry' => '12/40', 'cvv' => '123']])
             ->assertStatus(402)->assertJsonPath('data.order.payment_status', 'failed');
 
         $this->postJson($this->api("orders/{$id}/pay"), [
@@ -152,7 +152,7 @@ class CheckoutTest extends TestCase
         Coupon::factory()->create(['code' => 'TEN', 'type' => 'percentage', 'value' => 10]);
         $this->postJson($this->api('cart/apply-coupon'), ['code' => 'TEN'])->assertOk();
 
-        $order = $this->order(['payment_method' => 'demo_upi', 'payment_details' => ['upi_id' => 'me@okaxis']])
+        $order = $this->order(['payment_method' => 'demo_card', 'payment_details' => ['card_number' => '4111 1111 1111 1111', 'card_name' => 'Test', 'expiry' => '12/40', 'cvv' => '123']])
             ->assertCreated()->assertJsonPath('data.order.discount', 300)->assertJsonPath('data.order.coupon_code', 'TEN')->json('data.order');
         $this->assertSame(1, Coupon::where('code', 'TEN')->value('used_count'));
 

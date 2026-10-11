@@ -13,7 +13,7 @@ class PayOrderRequest extends ApiFormRequest
     {
         return array_merge([
             'payment_method' => ['required', Rule::in(PaymentMethod::onlineValues())],
-            'payment_details' => [$this->input('payment_method') === PaymentMethod::Razorpay->value ? 'nullable' : 'required', 'array'],
+            'payment_details' => [in_array($this->input('payment_method'), [PaymentMethod::Razorpay->value, PaymentMethod::Upi->value], true) ? 'nullable' : 'required', 'array'],
         ], app(PaymentManager::class)->rulesFor($this->input('payment_method')));
     }
 }

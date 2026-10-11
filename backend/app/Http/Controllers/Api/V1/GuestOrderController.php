@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\PaymentMethod;
-use App\Enums\PaymentStatus;
 use App\Exceptions\BusinessException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shop\GuestPlaceOrderRequest;
@@ -18,6 +17,7 @@ use App\Services\AuthTokenService;
 use App\Services\CartService;
 use App\Services\InvoiceService;
 use App\Services\OrderService;
+use App\Services\Payments\PaymentPayload;
 use App\Services\Payments\Razorpay\RazorpayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,6 +40,7 @@ class GuestOrderController extends Controller
         private CartService $carts,
         private InvoiceService $invoices,
         private RazorpayPaymentService $razorpay,
+        private PaymentPayload $payload,
     ) {}
 
     public function store(GuestPlaceOrderRequest $request): JsonResponse
@@ -53,26 +54,8 @@ class GuestOrderController extends Controller
         }
 
         $result = $this->orders->placeFromCart(null, $request->validated(), $request->ip(), $cart);
-        $order = $result['order']->load(['items', 'statusHistory', 'payment']);
-        $payment = $result['payment'];
-        $awaitingGateway = $payment->status === PaymentStatus::Pending && PaymentMethod::from($payment->method)->isRedirectFlow();
 
-        return response()->json([
-            'success' => true,
-            'message' => match (true) {
-                $payment->status === PaymentStatus::Success => 'Order placed successfully',
-                $awaitingGateway => 'Order created — complete the payment in the Razorpay window',
-                $payment->status === PaymentStatus::Pending => 'Order placed successfully — pay on delivery',
-                default => 'Order created but payment failed: '.$payment->failure_reason,
-            },
-            'data' => [
-                'order' => (new OrderResource($order))->resolve($request),
-                'payment' => (new PaymentResource($payment))->resolve($request),
-                'payment_successful' => $payment->status !== PaymentStatus::Failed && ! $awaitingGateway,
-                'razorpay' => $awaitingGateway ? $this->razorpay->checkoutOptions($order, $payment) : null,
-                'guest_token' => $order->guest_token,
-            ],
-        ], 201);
+        return $this->payload->placed($request, $result['order'], $result['payment'], ['guest_token' => $result['order']->guest_token]);
     }
 
     public function show(Request $request, string $order): JsonResponse
@@ -95,19 +78,8 @@ class GuestOrderController extends Controller
     {
         $model = $this->authorizeGuest($request, $order);
         $payment = $this->orders->pay($model, PaymentMethod::from($request->payment_method), $request->input('payment_details') ?? [], null);
-        $ok = $payment->status === PaymentStatus::Success;
-        $awaitingGateway = $payment->status === PaymentStatus::Pending && PaymentMethod::from($payment->method)->isRedirectFlow();
 
-        return response()->json([
-            'success' => $ok || $awaitingGateway,
-            'message' => $ok ? 'Payment successful' : ($awaitingGateway ? 'Complete the payment in the Razorpay window' : 'Payment failed: '.$payment->failure_reason),
-            'data' => [
-                'order' => (new OrderResource($model->fresh()->load(['items', 'statusHistory', 'payment'])))->resolve($request),
-                'payment' => (new PaymentResource($payment))->resolve($request),
-                'payment_successful' => $ok,
-                'razorpay' => $awaitingGateway ? $this->razorpay->checkoutOptions($model, $payment) : null,
-            ],
-        ], $ok || $awaitingGateway ? 200 : 402);
+        return $this->payload->retried($request, $model, $payment);
     }
 
     public function razorpayVerify(Request $request, string $order): JsonResponse
@@ -230,6 +202,12 @@ class GuestOrderController extends Controller
     }
 
     private function authorizeGuest(Request $request, string $number): Order
+    {
+        return self::guestOrder($request, $number);
+    }
+
+    /** The guest order named in the URL, if the request carries its secret token; 404 otherwise. */
+    public static function guestOrder(Request $request, string $number): Order
     {
         $token = $request->header(self::TOKEN_HEADER) ?: $request->query('token');
         $order = Order::where('order_number', strtoupper($number))->first();

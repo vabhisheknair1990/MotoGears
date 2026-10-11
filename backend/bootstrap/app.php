@@ -55,7 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
         $exceptions->render(function (BusinessException $e, Request $request) use ($json) {
-            return $json($e->getMessage(), $e->status, $e->errors ? ['errors' => $e->errors] : []);
+            return $json($e->getMessage(), $e->status, array_merge($e->extra, $e->errors ? ['errors' => $e->errors] : []));
         });
         $exceptions->render(function (AuthenticationException $e, Request $request) use ($json) {
             if ($request->is('v1', 'v1/*')) {

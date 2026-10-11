@@ -82,7 +82,7 @@ class OrderSeeder extends Seeder
 
             $lines = $products->random(mt_rand(1, 4))->map(fn ($p) => ['product' => $p, 'quantity' => mt_rand(1, 10) > 8 ? 2 : 1]);
             $coupon = mt_rand(1, 100) <= 22 ? $coupons->random() : null;
-            $method = [PaymentMethod::CashOnDelivery, PaymentMethod::DemoCard, PaymentMethod::DemoCard, PaymentMethod::DemoUpi, PaymentMethod::DemoUpi][mt_rand(0, 4)];
+            $method = [PaymentMethod::CashOnDelivery, PaymentMethod::DemoCard, PaymentMethod::DemoCard, PaymentMethod::Upi, PaymentMethod::Upi][mt_rand(0, 4)];
             $shipping = mt_rand(1, 100) <= 18 ? 'express' : 'standard';
             $totals = $pricing->calculate($lines, $coupon, $shipping, $user);
             $address = $user->addresses->firstWhere('is_default', true)?->toSnapshot() ?? $user->addresses->first()->toSnapshot();
@@ -120,12 +120,12 @@ class OrderSeeder extends Seeder
                 $t = $placed->copy();
                 $paid = $method !== PaymentMethod::CashOnDelivery;
                 $failed = $status === S::Pending && $paid; // online payment attempt that failed and awaits retry
-                $txn = $paid ? ($method === PaymentMethod::DemoUpi ? 'UPI' : 'DEMO-').Str::upper(Str::random(12)) : 'COD-'.$order->order_number;
+                $txn = $paid ? ($method === PaymentMethod::Upi ? 'UPI' : 'DEMO-').Str::upper(Str::random(12)) : 'COD-'.$order->order_number;
                 $payment = $order->payments()->create([
                     'method' => $method->value, 'gateway' => $paid ? 'demo' : 'cod', 'transaction_id' => $txn, 'amount' => $order->grand_total,
                     'status' => $failed ? PaymentStatus::Failed : ($paid ? PaymentStatus::Success : PaymentStatus::Pending),
                     'failure_reason' => $failed ? 'Card declined by issuing bank (demo decline).' : null,
-                    'meta' => $method === PaymentMethod::DemoCard ? ['brand' => 'Visa', 'last4' => (string) mt_rand(1000, 9999)] : ($method === PaymentMethod::DemoUpi ? ['vpa' => 'us***@okhdfc'] : ['collect_on_delivery' => true]),
+                    'meta' => $method === PaymentMethod::DemoCard ? ['brand' => 'Visa', 'last4' => (string) mt_rand(1000, 9999)] : ($method === PaymentMethod::Upi ? ['vpa' => 'us***@okhdfc', 'upi_flow' => 'collect'] : ['collect_on_delivery' => true]),
                     'paid_at' => $paid && ! $failed ? $placed : null,
                 ]);
                 if ($failed) {

@@ -193,8 +193,8 @@ class OrderService
                     'comment' => 'Payment of ₹'.number_format((float) $payment->amount, 2).' received via '.$method->label().' (Txn '.$payment->transaction_id.')',
                     'user_id' => $by?->id,
                 ]);
-            } elseif ($payment->status === PaymentStatus::Pending && $method->isRedirectFlow()) {
-                // Customer completes payment in the Razorpay popup; confirmed by signature check or webhook.
+            } elseif ($payment->status === PaymentStatus::Pending && $method->awaitsConfirmation()) {
+                // Paid in the Razorpay popup or a UPI app; confirmed by signature check, status polling or webhook.
                 $order->update(['payment_status' => OrderPaymentStatus::Pending]);
             } elseif ($payment->status === PaymentStatus::Pending && $method === PaymentMethod::CashOnDelivery) {
                 $order->update(['payment_status' => OrderPaymentStatus::Pending, 'status' => OrderStatus::Confirmed]);

@@ -100,6 +100,58 @@ components:
       name: X-Order-Token
       description: Secret token for one guest order (returned when it is placed, emailed to the shopper, or found via /v1/guest/orders/track). Can also be sent as ?token=
   schemas:
+    UpiSession:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - idle
+          - pending
+          - paid
+          - failed
+          - expired
+        message:
+          type: string
+          nullable: true
+        flow:
+          type: string
+          enum:
+          - intent
+          - collect
+          nullable: true
+        vpa:
+          type: string
+          nullable: true
+          description: Masked UPI ID (collect)
+        payer_name:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_in:
+          type: integer
+          nullable: true
+        amount:
+          type: number
+        payee:
+          type: string
+        demo:
+          type: boolean
+        transaction_id:
+          type: string
+          nullable: true
+        qr:
+          type: string
+          description: QR responses only — SVG data URI
+        link:
+          type: string
+          description: QR responses only — upi://pay link
+        order:
+          type: object
+          description: Paid / failed responses — the updated order
     PaginationMeta:
       type: object
       properties:
@@ -7560,7 +7612,7 @@ paths:
       - name: payment_method
         in: query
         required: false
-        description: cod / demo_card / demo_upi
+        description: upi / razorpay / cod / demo_card (demo_upi on old orders)
         schema:
           type: string
       - name: customer_id
@@ -16141,6 +16193,198 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /v1/guest/orders/{order}/upi/qr:
+    post:
+      tags:
+      - Guest checkout
+      summary: 'UPI: show QR code'
+      operationId: POST_guest_orders_order_upi_qr
+      description: Starts (or reuses while valid) a UPI intent for the order total. `data.qr` is an SVG data URI of the `upi://pay` link in `data.link`.
+        Creates a new UPI payment attempt when needed (e.g. after a failure or another method).
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order number
+        schema:
+          type: string
+      security:
+      - orderToken: []
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Order already paid
+        '503':
+          description: 'UPI provider unavailable. `fallback: "razorpay"` when the Razorpay window can be used instead.'
+  /v1/guest/orders/{order}/upi/collect:
+    post:
+      tags:
+      - Guest checkout
+      summary: 'UPI: request payment from a UPI ID'
+      operationId: POST_guest_orders_order_upi_collect
+      description: Validates the UPI ID (422 if not found) and sends a collect request; the customer approves it in their UPI app.
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order number
+        schema:
+          type: string
+      security:
+      - orderToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vpa:
+                  type: string
+                  example: asha@okaxis
+            example:
+              vpa: asha@okaxis
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Order already paid
+        '503':
+          description: 'UPI provider unavailable. `fallback: "razorpay"` when the Razorpay window can be used instead.'
+  /v1/guest/orders/{order}/upi/status:
+    get:
+      tags:
+      - Guest checkout
+      summary: 'UPI: payment status (poll)'
+      operationId: GET_guest_orders_order_upi_status
+      description: 'Asks the provider and confirms the order when paid. Poll every ~3 s. `status`: idle / pending / paid / failed / expired; paid
+        and failed include `data.order`.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order number
+        schema:
+          type: string
+      security:
+      - orderToken: []
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/guest/orders/{order}/upi/simulate:
+    post:
+      tags:
+      - Guest checkout
+      summary: 'UPI: simulate approval (demo only)'
+      operationId: POST_guest_orders_order_upi_simulate
+      description: Only with the UPI simulator (no Razorpay keys, demo methods on). 404 otherwise.
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order number
+        schema:
+          type: string
+      security:
+      - orderToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                  - success
+                  - failure
+            example:
+              outcome: success
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
   /v1/guest/orders/{order}/razorpay/failed:
     post:
       tags:
@@ -19810,6 +20054,198 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /v1/orders/{order}/upi/qr:
+    post:
+      tags:
+      - Payments
+      summary: 'UPI: show QR code'
+      operationId: POST_orders_order_upi_qr
+      description: Starts (or reuses while valid) a UPI intent for the order total. `data.qr` is an SVG data URI of the `upi://pay` link in `data.link`.
+        Creates a new UPI payment attempt when needed (e.g. after a failure or another method).
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order id or number
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Order already paid
+        '503':
+          description: 'UPI provider unavailable. `fallback: "razorpay"` when the Razorpay window can be used instead.'
+  /v1/orders/{order}/upi/collect:
+    post:
+      tags:
+      - Payments
+      summary: 'UPI: request payment from a UPI ID'
+      operationId: POST_orders_order_upi_collect
+      description: Validates the UPI ID (422 if not found) and sends a collect request; the customer approves it in their UPI app.
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order id or number
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vpa:
+                  type: string
+                  example: asha@okaxis
+            example:
+              vpa: asha@okaxis
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: Order already paid
+        '503':
+          description: 'UPI provider unavailable. `fallback: "razorpay"` when the Razorpay window can be used instead.'
+  /v1/orders/{order}/upi/status:
+    get:
+      tags:
+      - Payments
+      summary: 'UPI: payment status (poll)'
+      operationId: GET_orders_order_upi_status
+      description: 'Asks the provider and confirms the order when paid. Poll every ~3 s. `status`: idle / pending / paid / failed / expired; paid
+        and failed include `data.order`.'
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order id or number
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/orders/{order}/upi/simulate:
+    post:
+      tags:
+      - Payments
+      summary: 'UPI: simulate approval (demo only)'
+      operationId: POST_orders_order_upi_simulate
+      description: Only with the UPI simulator (no Razorpay keys, demo methods on). 404 otherwise.
+      parameters:
+      - name: order
+        in: path
+        required: true
+        description: Order id or number
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                  - success
+                  - failure
+            example:
+              outcome: success
+      responses:
+        '200':
+          description: Success — `data` is a UPI session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UpiSession'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':

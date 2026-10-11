@@ -159,7 +159,7 @@ class GuestCheckoutTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.payment_successful', false);
         [$number, $token] = [$res->json('data.order.order_number'), $res->json('data.guest_token')];
 
-        $this->asOrderOwner($token)->postJson($this->api("guest/orders/{$number}/pay"), ['payment_method' => 'demo_upi', 'payment_details' => ['upi_id' => 'asha@okaxis']])
+        $this->asOrderOwner($token)->postJson($this->api("guest/orders/{$number}/pay"), ['payment_method' => 'demo_card', 'payment_details' => ['card_number' => '4111 1111 1111 1111', 'card_name' => 'Test', 'expiry' => '12/40', 'cvv' => '123']])
             ->assertOk()->assertJsonPath('data.payment_successful', true)->assertJsonPath('data.order.payment_status', 'paid');
 
         $this->asOrderOwner($token)->getJson($this->api("guest/orders/{$number}/invoice"))->assertOk()

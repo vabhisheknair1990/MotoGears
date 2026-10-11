@@ -120,7 +120,8 @@ Demo payments (no real gateway is contacted):
 |--------|----------|-------|
 | Cash on Delivery | always (up to the COD limit) | order above the COD limit |
 | Demo card | any Luhn-valid number, e.g. `4111 1111 1111 1111`, future expiry, any CVV | a card ending in `0002` |
-| Demo UPI | any VPA, e.g. `aarav@okaxis` | a VPA starting with `fail`, e.g. `fail@upi` |
+| UPI (simulator) — QR code | click **Simulate payment** under the QR | **Simulate failure** |
+| UPI (simulator) — UPI ID | any UPI ID, e.g. `aarav@okaxis` (approved after ~4 s) | an ID starting with `fail`, e.g. `fail@ybl`; `invalid@…` is "not found" |
 
 A failed payment leaves the order *pending / payment failed* with stock still reserved; the customer
 can retry from the order page until the unpaid-order timeout cancels it.
@@ -160,6 +161,44 @@ How it works (all amounts and checks are server-side):
   `payment.failed`, `order.paid`, and a secret you put in `RAZORPAY_WEBHOOK_SECRET`. It confirms orders even
   if the customer closes the browser before verification. Locally it needs a public tunnel (e.g. ngrok).
 - In production set `PAYMENT_DEMO_METHODS=false` to hide the simulated methods and use live `rzp_live_…` keys.
+
+### UPI — QR code and UPI ID on our own page
+
+**UPI** is the first payment option at checkout. After *Place order & pay by UPI* the shopper lands on
+the payment page (`/order-success/:number`) with two tabs:
+
+1. **Scan QR code** — a QR code (a `upi://pay` link, rendered as SVG by Laravel — no third-party QR
+   service) for the exact order total. Scan with Google Pay, PhonePe, Paytm, BHIM or any bank app. On
+   phones an **Open UPI app to pay** button opens the UPI app directly. The QR is valid for 10 minutes
+   (`UPI_QR_TTL_MINUTES`), with a countdown; an expired QR can be replaced with one click.
+2. **Pay with UPI ID** — the shopper types their UPI ID (e.g. `98xxxxxx10@ybl`); it is checked first
+   (and the account holder's name shown), then a payment request is sent. They approve it in their UPI
+   app with their PIN within 5 minutes (`UPI_COLLECT_TTL_MINUTES`).
+
+While waiting, the page asks Laravel for the status every 3 seconds (and immediately when the shopper
+switches back from their UPI app). Laravel asks Razorpay — the browser never decides that an order is
+paid. As soon as the money arrives the order becomes **Confirmed / Paid**, the confirmation shows and
+the usual emails go out. If the tab was closed, the Razorpay webhook confirms it instead.
+
+- **Declined / expired:** the order stays *pending* with stock reserved; the page offers "Try again" or
+  the other tab. Unpaid orders are cancelled after the unpaid-order timeout (Settings).
+- **Retry later:** *Complete payment* on the order page (customer or guest) opens the same UPI page.
+- **Duplicates:** if both the QR and a request get paid, the extra payment is refunded automatically.
+- **Refunds:** cancelling a paid UPI order refunds through Razorpay.
+- **Admin:** each payment shows "Scanned QR code" or "Request to UPI ID", the payer's UPI ID and name.
+
+Provider (`UPI_PROVIDER`): `auto` uses **Razorpay** when keys are set, otherwise the **simulator** (with
+*Simulate payment / failure* buttons) while `PAYMENT_DEMO_METHODS=true`. With Razorpay it uses the S2S
+UPI API (`/payments/create/upi` with `flow: intent` for the QR and `flow: collect` for UPI IDs, plus
+`/payments/validate/vpa`). **Ask Razorpay support to enable "UPI S2S (intent + collect)" on your
+account.** Until it is enabled, the UPI page shows "UPI is not available right now" with a
+**Pay with Razorpay instead** button (Razorpay's own window also takes UPI), so no order is stuck —
+or set `UPI_ENABLED=false` to hide the option. In Razorpay test mode use the UPI ID
+`success@razorpay` / `failure@razorpay`.
+
+API: `POST /orders/{id}/upi/qr`, `POST /orders/{id}/upi/collect` `{vpa}`, `GET /orders/{id}/upi/status`
+(guests: `/guest/orders/{number}/upi/...` with `X-Order-Token`); `POST …/upi/simulate` works only
+with the simulator.
 
 Seed data (fresh install): 25 customers + 6 staff, 13 vehicle manufacturers, 40 models, 86 variants
 with year ranges, 32 categories (parent + child), 28 brands, 172 products with generated images, 90
@@ -243,7 +282,8 @@ an account is later deleted.
 - Product page: gallery with zoom, full screen and video, compatibility checker, specs, warranty,
   installation, what's included, reviews with photos, FAQs, share, sticky mobile buy bar.
 - Cart drawer + cart page (quantity, coupons, shipping choice, free-shipping meter), wishlist
-  (move to cart), 4-step checkout (address → shipping → payment → review) for customers **and guests**, order success,
+  (move to cart), 4-step checkout (address → shipping → payment → review) for customers **and guests**, UPI by QR code
+  or UPI ID with live status (see "UPI" in section 3), order success,
   retry payment, guest order page + Track order (see "Guest checkout" in section 3).
 - Account: dashboard, orders + timeline + cancel, printable/downloadable GST invoice, profile, password,
   addresses, saved vehicles ("My garage"), wishlist, reviews (verified purchase), notifications.
@@ -328,9 +368,9 @@ an account is later deleted.
 ## 7. Tests
 
 ```bash
-cd backend && php artisan test      # 118 feature tests: auth, catalog, cart, coupons, checkout, guest checkout,
+cd backend && php artisan test      # 130 feature tests: auth, catalog, cart, coupons, checkout, guest checkout, UPI,
                                     # orders, Razorpay, product import, inventory, reviews, admin CRUD, authorization
-cd frontend && ng test              # 64 Vitest specs: services (incl. Razorpay, product import, guest orders), guards, interceptors, cart state,
+cd frontend && ng test              # 71 Vitest specs: services (incl. Razorpay, UPI, product import, guest orders), guards, interceptors, cart state,
                                     # components, admin chart/CRUD logic
 ```
 

@@ -16,11 +16,12 @@ import { errorMessage } from '../../../core/utils/http-errors';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { IconComponent } from '../../../shared/components/icon.component';
 import { OrderTimelineComponent } from '../../../shared/components/order-timeline.component';
+import { UpiPayComponent } from '../../../shared/components/upi-pay.component';
 import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
 
 @Component({
   selector: 'app-order-success-page',
-  imports: [RouterLink, FormsModule, IconComponent, EmptyStateComponent, OrderTimelineComponent, GuestAccountCardComponent, InrPipe, AppDatePipe],
+  imports: [RouterLink, FormsModule, IconComponent, EmptyStateComponent, OrderTimelineComponent, GuestAccountCardComponent, UpiPayComponent, InrPipe, AppDatePipe],
   template: `
     <div class="container narrow">
       @if (loading()) {
@@ -36,8 +37,8 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
       } @else {
         @let o = order()!;
         @if (needsPayment()) {
-          <div class="hero-box failed">
-            <div class="ic"><app-icon name="alert" [size]="36" /></div>
+          <div class="hero-box" [class.failed]="o.payment_status === 'failed'">
+            <div class="ic"><app-icon [name]="o.payment_status === 'failed' ? 'alert' : 'clock'" [size]="36" /></div>
             @if (o.payment_status === 'failed') {
               @let reason = o.payment?.failure_reason;
               <h1>Payment failed</h1>
@@ -46,7 +47,7 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
               <h1>Complete your payment</h1>
               <p>Your order <strong>{{ o.order_number }}</strong> is reserved and waiting for payment.</p>
             }
-            <p class="text-sm">Pay within 30 minutes to keep your items reserved. If money was already deducted, this page will update automatically once the bank confirms.</p>
+            <p class="text-sm">Pay within {{ timeoutMinutes() }} minutes to keep your items reserved. If money was already deducted, the order updates automatically once the bank confirms.</p>
           </div>
           <div class="card card-body retry">
             <h2>Pay {{ o.grand_total | inr }}</h2>
@@ -55,7 +56,9 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
                 <label class="chip" [class.active]="method() === m.code"><input type="radio" class="sr-only" name="m" (change)="chosen.set(m.code)" [checked]="method() === m.code" />{{ m.label }}</label>
               }
             </div>
-            @if (method() === 'razorpay') {
+            @if (method() === 'upi') {
+              <app-upi-pay [order]="o" [token]="token()" (paid)="onPaid($event)" (orderChange)="order.set($event)" (useRazorpay)="payWithRazorpay()" />
+            } @else if (method() === 'razorpay') {
               <p class="text-sm text-muted mb-0">Pay by UPI, card, net banking or wallet in Razorpay's secure window.</p>
             } @else if (method() === 'demo_card') {
               <div class="form-grid cols-2">
@@ -63,13 +66,13 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
                 <div class="field"><label class="label" for="r-exp">Expiry</label><input id="r-exp" class="input mono" [(ngModel)]="expiry" name="e" /></div>
                 <div class="field"><label class="label" for="r-cvv">CVV</label><input id="r-cvv" class="input mono" type="password" [(ngModel)]="cvv" name="c" /></div>
               </div>
-            } @else if (method() === 'demo_upi') {
-              <div class="field"><label class="label" for="r-upi">UPI ID</label><input id="r-upi" class="input" [(ngModel)]="upiId" name="u" /></div>
             }
             @if (retryError()) { <div class="alert alert-danger mt-16">{{ retryError() }}</div> }
             <div class="row end mt-16">
               <a class="btn" [routerLink]="orderLink(o)" [queryParams]="orderQuery()">View order</a>
-              <button class="btn btn-primary" (click)="retry()" [disabled]="paying() || !method()">@if (paying()) { <span class="spinner"></span> } Pay {{ o.grand_total | inr }}</button>
+              @if (method() !== 'upi') {
+                <button class="btn btn-primary" (click)="retry()" [disabled]="paying() || !method()">@if (paying()) { <span class="spinner"></span> } Pay {{ o.grand_total | inr }}</button>
+              }
             </div>
           </div>
         } @else {
@@ -80,7 +83,11 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
             @if (o.is_guest && o.customer?.email; as email) {
               <p class="text-sm">We've emailed your confirmation and a private link to this order to <strong>{{ email }}</strong>.</p>
             }
-            <p class="text-sm">{{ o.payment_method === 'cod' ? 'Please keep ' + (o.grand_total | inr) + ' ready for cash on delivery.' : 'Payment received — ' + (o.payment?.transaction_id ?? '') }}</p>
+            @if (o.payment_method === 'cod') {
+              <p class="text-sm">Please keep {{ o.grand_total | inr }} ready for cash on delivery.</p>
+            } @else {
+              <p class="text-sm">Payment of {{ o.grand_total | inr }} received@if (o.payment; as p) { via {{ p.method_label }} · Ref <span class="mono">{{ p.transaction_id }}</span> }</p>
+            }
           </div>
           <div class="grid md-grid-2 gap-16">
             <div class="card card-body">
@@ -150,6 +157,7 @@ export class OrderSuccessPage {
   protected readonly methods = computed(() =>
     (this.settings()?.payment_methods ?? []).filter((m): m is { code: OnlinePaymentCode; label: string; description: string } => m.code !== 'cod'),
   );
+  protected readonly timeoutMinutes = computed(() => this.settings()?.unpaid_order_timeout_minutes ?? 30);
   private readonly chosen = signal<OnlinePaymentCode | null>(null);
   protected readonly method = computed<OnlinePaymentCode | null>(() => {
     const list = this.methods();
@@ -165,7 +173,6 @@ export class OrderSuccessPage {
   protected cardNumber = '4111 1111 1111 1111';
   protected expiry = '12/29';
   protected cvv = '123';
-  protected upiId = 'success@upi';
 
   constructor() {
     inject(SeoService).set({ title: 'Order confirmation' });
@@ -188,6 +195,19 @@ export class OrderSuccessPage {
     return t ? { token: t } : null;
   }
 
+  protected onPaid(order: Order): void {
+    this.order.set(order);
+    this.retryError.set(null);
+    this.toast.success('Payment received — order confirmed');
+    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }
+
+  /** In-page UPI is unavailable: pay in Razorpay's window (which also takes UPI). */
+  protected payWithRazorpay(): void {
+    this.chosen.set('razorpay');
+    this.retry();
+  }
+
   retry(): void {
     const o = this.order();
     const method = this.method();
@@ -196,7 +216,7 @@ export class OrderSuccessPage {
     this.retryError.set(null);
     const details: Record<string, string> | null = method === 'demo_card'
       ? { card_number: this.cardNumber, card_name: o.shipping_address.name, expiry: this.expiry, cvv: this.cvv }
-      : method === 'demo_upi' ? { upi_id: this.upiId } : null;
+      : null;
     const token = this.token();
     const guest = token ? { number: o.order_number, token } : undefined;
     (guest ? this.guestOrders.pay(guest.number, guest.token, method, details) : this.orders.pay(o.id, method, details)).subscribe({

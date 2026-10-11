@@ -20,7 +20,7 @@ class PaymentResource extends JsonResource
             'currency' => $this->currency,
             'status' => $this->status->value,
             'failure_reason' => $this->failure_reason,
-            'details' => collect($this->meta ?? [])->only(['brand', 'last4', 'vpa', 'bank', 'wallet', 'rzp_method', 'collect_on_delivery', 'refund_id']),
+            'details' => collect($this->meta ?? [])->only(['brand', 'last4', 'vpa', 'bank', 'wallet', 'rzp_method', 'collect_on_delivery', 'refund_id', 'upi_flow', 'payer_name']),
             'paid_at' => $this->paid_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

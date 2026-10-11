@@ -46,6 +46,28 @@ class RazorpayClient
         return $this->send('get', 'payments/'.rawurlencode($paymentId));
     }
 
+    /** GET /orders/{id}/payments — every attempt made against one Razorpay order. */
+    public function fetchOrderPayments(string $orderId): array
+    {
+        return $this->send('get', 'orders/'.rawurlencode($orderId).'/payments')['items'] ?? [];
+    }
+
+    /**
+     * POST /payments/create/upi — S2S UPI payment against a Razorpay order.
+     * flow "intent" returns a upi://pay link (shown as a QR code); flow "collect" sends a
+     * request to the customer's UPI ID. Needs UPI S2S enabled on the Razorpay account.
+     */
+    public function createUpiPayment(array $payload): array
+    {
+        return $this->send('post', 'payments/create/upi', $payload);
+    }
+
+    /** POST /payments/validate/vpa — checks a UPI ID exists and returns the holder's name. */
+    public function validateVpa(string $vpa): array
+    {
+        return $this->send('post', 'payments/validate/vpa', ['vpa' => $vpa]);
+    }
+
     /** POST /payments/{id}/capture — only needed when auto-capture is off in the Dashboard. */
     public function capture(string $paymentId, int $amountPaise, string $currency = 'INR'): array
     {

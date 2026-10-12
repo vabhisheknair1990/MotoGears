@@ -2,8 +2,8 @@
 <div class="shell" [class.open]="sidebarOpen()">
   <aside class="side" aria-label="Admin navigation">
     <a routerLink="/admin" class="brand">
-      <span class="logo" aria-hidden="true"><app-icon name="gauge" [size]="18" /></span>
-      <span><strong>MotoGears</strong><small>Admin</small></span>
+      <app-logo on="dark" [height]="40" alt="Moto Gears" />
+      <small>Admin</small>
     </a>
     <nav>
       @for (s of nav(); track s.title) {

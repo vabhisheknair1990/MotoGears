@@ -17,9 +17,9 @@ export class SeoService {
     this.meta.updateTag({ property: 'og:title', content: title });
     this.meta.updateTag({ property: 'og:description', content: description });
     this.meta.updateTag({ property: 'og:type', content: opts.type ?? 'website' });
-    if (opts.image) {
-      this.meta.updateTag({ property: 'og:image', content: opts.image });
-    }
+    // Pages without their own picture share the brand card (logo on dark).
+    const origin = this.doc.location?.origin ?? '';
+    this.meta.updateTag({ property: 'og:image', content: opts.image || `${origin}/brand/og-image.png` });
     this.setCanonical();
   }
 

@@ -268,6 +268,23 @@ an account is later deleted.
 
 ---
 
+### Logo & brand assets
+
+The source artwork is `brand/logo-source.pdf` (Illustrator). The web versions are generated from it
+as vector SVGs in `frontend/public/brand/`:
+
+| File | Used for |
+|------|----------|
+| `logo.svg` | Light backgrounds — mobile menu, admin login, invoices (+ faint watermark) |
+| `logo-light.svg` | Dark backgrounds — site header, footer, admin sidebar (white lettering) |
+| `logo-mark.svg` | Helmet mark only — favicon and app icons |
+| `favicon-16/32.png`, `apple-touch-icon.png`, `icon-192/512.png`, `icon-maskable-512.png` | Browser tab, phone home screen (`site.webmanifest`) |
+| `og-image.png` | Link previews on WhatsApp / Facebook / X (1200×630) |
+| `logo-email.png` | Header of order emails (PNG because Gmail/Outlook don't show SVG) |
+
+The downloadable invoice embeds `backend/resources/brand/logo.svg`, so it works offline. The site red
+`--brand` (#DA1E25) matches the logo.
+
 ## 4. Features
 
 ### Storefront (`/`)

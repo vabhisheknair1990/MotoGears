@@ -70,7 +70,7 @@ export interface ChartPoint { label: string; value: number; sub?: string }
 export class AreaChartComponent {
   readonly data = input.required<ChartPoint[]>();
   readonly height = input(260);
-  readonly color = input('#d7263d');
+  readonly color = input('#da1e25');
   readonly ariaLabel = input('Chart');
   readonly format = input<(v: number) => string>((v) => v.toLocaleString('en-IN'));
   readonly axisFormat = input<(v: number) => string>((v) => compact(v));

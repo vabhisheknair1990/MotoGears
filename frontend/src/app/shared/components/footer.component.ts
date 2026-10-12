@@ -7,10 +7,11 @@ import { CmsService } from '../../core/services/cms.service';
 import { ToastService } from '../../core/services/toast.service';
 import { errorMessage } from '../../core/utils/http-errors';
 import { IconComponent } from './icon.component';
+import { LogoComponent } from './logo.component';
 
 @Component({
   selector: 'app-footer',
-  imports: [RouterLink, FormsModule, IconComponent],
+  imports: [RouterLink, FormsModule, IconComponent, LogoComponent],
   template: `
     <section class="trust">
       <div class="container trust-grid">
@@ -23,7 +24,7 @@ import { IconComponent } from './icon.component';
     <footer class="foot">
       <div class="container cols">
         <div class="about">
-          <a routerLink="/" class="logo"><span class="mark">M</span><span class="word">Moto<b>Gears</b></span></a>
+          <a routerLink="/" class="logo" aria-label="Moto Gears home"><app-logo on="dark" [height]="52" /></a>
           <p>{{ settings()?.store_tagline ?? 'Genuine parts. Perfect fit.' }} Car & bike parts and accessories from the brands mechanics trust.</p>
           <p class="contact"><app-icon name="phone" [size]="15" /> {{ settings()?.support_phone }}<br /><app-icon name="mail" [size]="15" /> {{ settings()?.support_email }}</p>
         </div>

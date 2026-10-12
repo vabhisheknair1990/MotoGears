@@ -9,10 +9,11 @@ import { IconComponent } from '../../../shared/components/icon.component';
 import { AdminApiService } from '../data/admin-api.service';
 import { AdminNotification } from '../data/admin.models';
 import { ADMIN_NAV } from './admin-nav';
+import { LogoComponent } from '../../../shared/components/logo.component';
 
 @Component({
   selector: 'adm-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, TimeAgoPipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, LogoComponent, TimeAgoPipe],
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

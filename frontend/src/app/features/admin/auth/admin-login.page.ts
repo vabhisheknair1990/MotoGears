@@ -7,14 +7,15 @@ import { AuthStore } from '../../../core/state/auth.store';
 import { errorMessage } from '../../../core/utils/http-errors';
 import { IconComponent } from '../../../shared/components/icon.component';
 import { ADMIN_NAV } from '../layout/admin-nav';
+import { LogoComponent } from '../../../shared/components/logo.component';
 
 @Component({
   selector: 'adm-login-page',
-  imports: [ReactiveFormsModule, RouterLink, IconComponent],
+  imports: [ReactiveFormsModule, RouterLink, IconComponent, LogoComponent],
   template: `
     <main class="wrap">
       <div class="panel">
-        <div class="brand"><span class="logo"><app-icon name="gauge" [size]="22" /></span><div><strong>MotoGears</strong><small>Admin console</small></div></div>
+        <div class="brand"><app-logo [height]="56" /><small>Admin console</small></div>
         <h1>Sign in</h1>
         <p class="sub">Staff access only. Activity in this console is audited.</p>
         @if (denied()) { <div class="alert alert-warning"><app-icon name="lock" [size]="18" /> That account doesn't have admin access. Sign in with a staff account.</div> }
@@ -45,11 +46,9 @@ import { ADMIN_NAV } from '../layout/admin-nav';
     </main>
   `,
   styles: `
-    .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(1200px 600px at 10% -10%, rgba(215,38,61,.25), transparent 60%), var(--dark, #0b0f17); }
+    .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(1200px 600px at 10% -10%, rgba(218,30,37,.25), transparent 60%), var(--dark, #0b0f17); }
     .panel { width: 100%; max-width: 420px; background: #fff; border-radius: 16px; padding: 32px 28px; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
-    .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; }
-    .logo { width: 42px; height: 42px; border-radius: 11px; background: var(--brand); color: #fff; display: grid; place-items: center; }
-    .brand strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 24px; line-height: 1; }
+    .brand { display: flex; gap: 12px; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
     .brand small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; }
     h1 { margin: 0 0 4px; font-size: 26px; }
     .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }

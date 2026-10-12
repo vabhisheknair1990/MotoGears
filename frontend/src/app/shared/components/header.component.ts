@@ -5,7 +5,6 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/ro
 import { catchError, filter, of } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { CategoryService } from '../../core/services/category.service';
-import { CmsService } from '../../core/services/cms.service';
 import { WishlistService } from '../../core/services/wishlist.service';
 import { AuthStore } from '../../core/state/auth.store';
 import { CartStore } from '../../core/state/cart.store';
@@ -41,8 +40,6 @@ export class HeaderComponent {
     ...(this.categories().find((c) => c.slug === 'accessories')?.children ?? []),
     ...(this.categories().find((c) => c.slug === 'oils-maintenance')?.children ?? []),
   ]);
-  /** Razorpay test keys on the server: warn shoppers that payments aren't real. */
-  protected readonly testMode = toSignal(inject(CmsService).getSettings().pipe(catchError(() => of(null))), { initialValue: null });
   protected readonly accountOpen = signal(false);
   protected readonly openMenu = signal<string | null>(null);
 

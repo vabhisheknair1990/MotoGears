@@ -24,14 +24,19 @@
   <div class="head">
     <div>
       <div class="brand">{{ $invoice['seller']['name'] }}<span>.</span></div>
+      @if(!empty($invoice['seller']['trade_name']))
+        <div><strong>{{ $invoice['seller']['trade_name'] }}</strong>@if(!empty($invoice['seller']['legal_name'])) <span class="muted">(Proprietor: {{ $invoice['seller']['legal_name'] }})</span>@endif</div>
+      @endif
       <div class="muted">{{ $invoice['seller']['address'] }}</div>
-      <div class="muted">GSTIN: {{ $invoice['seller']['gstin'] }} · {{ $invoice['seller']['email'] }} · {{ $invoice['seller']['phone'] }}</div>
+      <div class="muted">GSTIN: <strong>{{ $invoice['seller']['gstin'] }}</strong>@if(!empty($invoice['seller']['state'])) · State: {{ $invoice['seller']['state'] }} ({{ $invoice['seller']['state_code'] }})@endif</div>
+      <div class="muted">{{ $invoice['seller']['email'] }} · {{ $invoice['seller']['phone'] }}</div>
     </div>
     <div style="text-align:right">
       <h1>TAX INVOICE</h1>
       <div><strong>{{ $invoice['invoice_number'] }}</strong></div>
       <div class="muted">Date: {{ $invoice['invoice_date'] }}</div>
       <div class="muted">Order: {{ $invoice['order_number'] }}</div>
+      @if(!empty($invoice['place_of_supply']))<div class="muted">Place of supply: {{ $invoice['place_of_supply'] }}</div>@endif
     </div>
   </div>
 

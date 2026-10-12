@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Support\GstStates;
 
 class InvoiceService
 {
@@ -11,16 +12,24 @@ class InvoiceService
     public function data(Order $order): array
     {
         $order->loadMissing(['items', 'user', 'payment']);
+        $gstin = (string) $this->settings->get('gstin');
+        $sellerState = GstStates::fromGstin($gstin);
+        $placeOfSupply = (string) ($order->shipping_address['state'] ?? '');
         $seller = [
             'name' => $this->settings->get('store_name'),
+            'trade_name' => $this->settings->get('trade_name'),
+            'legal_name' => $this->settings->get('legal_name'),
+            'state' => $sellerState,
+            'state_code' => $sellerState ? substr($gstin, 0, 2) : null,
             'address' => $this->settings->get('store_address'),
             'gstin' => $this->settings->get('gstin'),
             'email' => $this->settings->get('support_email'),
             'phone' => $this->settings->get('support_phone'),
         ];
         $shippingTax = round((float) $order->shipping_amount * $this->settings->float('shipping_tax_rate') / 100, 2);
-        // Intra-state (Karnataka) supply splits GST into CGST + SGST; inter-state is IGST.
-        $intraState = strcasecmp((string) ($order->shipping_address['state'] ?? ''), 'Karnataka') === 0;
+        // Supply within the seller's state (from the GSTIN, e.g. 32 = Kerala) splits GST into CGST + SGST;
+        // supply to any other state is IGST.
+        $intraState = GstStates::same($sellerState, $placeOfSupply);
 
         return [
             'invoice_number' => 'INV-'.$order->order_number,
@@ -49,6 +58,7 @@ class InvoiceService
                 'total' => (float) $i->line_total,
             ])->values(),
             'tax_split' => $intraState ? 'CGST+SGST' : 'IGST',
+            'place_of_supply' => $placeOfSupply !== '' ? $placeOfSupply.(($c = GstStates::codeOf($placeOfSupply)) ? ' ('.$c.')' : '') : null,
             'totals' => [
                 'subtotal' => (float) $order->subtotal,
                 'discount' => (float) $order->discount,

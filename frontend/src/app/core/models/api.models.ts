@@ -442,6 +442,8 @@ export interface StoreSettings {
   currency: string; free_shipping_threshold: number; standard_shipping_cost?: number; express_shipping_cost?: number; cod_enabled?: boolean;
   guest_checkout_enabled?: boolean;
   unpaid_order_timeout_minutes?: number;
+  /** Razorpay is running on test keys — no real money is charged. */
+  payments_test_mode?: boolean;
   /** Registered business details (GST certificate). */
   trade_name?: string; legal_name?: string; gstin?: string;
   payment_methods?: { code: PaymentCode; label: string; description: string }[];

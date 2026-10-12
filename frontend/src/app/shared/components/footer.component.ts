@@ -83,7 +83,7 @@ export class FooterComponent {
   protected readonly settings = toSignal(this.cms.getSettings().pipe(catchError(() => of(null))), { initialValue: null });
   protected readonly year = new Date().getFullYear();
   /** The "demo store" note only shows while simulated payment methods are switched on. */
-  protected readonly isDemo = computed(() => !!this.settings()?.payment_methods?.some((m) => m.code.startsWith('demo_')));
+  protected readonly isDemo = computed(() => !!this.settings()?.payments_test_mode || !!this.settings()?.payment_methods?.some((m) => m.code.startsWith('demo_')));
   protected email = '';
   protected readonly busy = signal(false);
 

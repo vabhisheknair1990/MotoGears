@@ -104,4 +104,13 @@ class BusinessDetailsTest extends TestCase
         $this->assertStringContainsString('https://themotogears.in/brand/logo-email.png', $html);
         $this->assertStringContainsString('#da1e25', strtolower($html));
     }
+
+    public function test_settings_report_razorpay_test_mode(): void
+    {
+        $this->getJson($this->api('settings'))->assertJsonPath('data.payments_test_mode', false);
+        config(['payments.razorpay.key_id' => 'rzp_test_ABC', 'payments.razorpay.key_secret' => 's']);
+        $this->getJson($this->api('settings'))->assertJsonPath('data.payments_test_mode', true);
+        config(['payments.razorpay.key_id' => 'rzp_live_ABC']);
+        $this->getJson($this->api('settings'))->assertJsonPath('data.payments_test_mode', false);
+    }
 }

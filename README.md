@@ -171,9 +171,9 @@ How it works (all amounts and checks are server-side):
   button (the customer just sees "your refund is being processed").
 - Only methods Razorpay has switched on for the account are offered (checked via `GET /methods`, cached
   30 min): e.g. UPI stays hidden until Razorpay enables it after KYC.
-- **Test mode on the live site:** with `rzp_test_…` keys the storefront shows a yellow "Test mode —
-  payments are not real" bar. Use live `rzp_live_…` keys (and a live-mode webhook) when you launch, and
-  keep `PAYMENT_DEMO_METHODS=false` in production.
+- **Test mode on the live site:** `rzp_test_…` keys run Razorpay's test mode (no real money); the
+  storefront shows no banner, so the site looks exactly like launch (e.g. for the bank's review). Use
+  live `rzp_live_…` keys (and a live-mode webhook) when you launch, and keep `PAYMENT_DEMO_METHODS=false`.
 
 ### UPI — QR code and UPI ID on our own page
 

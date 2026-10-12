@@ -49,5 +49,3 @@
 }
 .topbar span, .topbar a { white-space: nowrap; }
 @media (max-width: 767px) { .topbar { font-size: 11.5px; } .tb-right a:not(.offers) { display: none; } }
-
-.test-mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 16px; background: #fde68a; color: #713f12; font-size: 13px; font-weight: 600; text-align: center; }

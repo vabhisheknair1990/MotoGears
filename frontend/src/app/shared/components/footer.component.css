@@ -14,9 +14,6 @@ h4 { color: #fff; font-size: 14px; margin-bottom: 12px; font-family: var(--font)
 .cols a { display: block; padding: 4px 0; }
 .cols a:hover { color: #fff; }
 .logo { display: inline-flex !important; align-items: center; gap: 8px; color: #fff; margin-bottom: 10px; }
-.mark { width: 32px; height: 32px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: #fff; }
-.word { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: #fff; }
-.word b { color: var(--brand); }
 .contact { line-height: 2; }
 .contact app-icon { vertical-align: -2px; margin-right: 6px; }
 .news .input { background: var(--dark-2); border-color: var(--dark-line); color: #fff; }

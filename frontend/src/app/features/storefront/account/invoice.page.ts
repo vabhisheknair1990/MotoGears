@@ -5,12 +5,13 @@ import { catchError, of, switchMap } from 'rxjs';
 import { Invoice } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/api/api.service';
 import { IconComponent } from '../../../shared/components/icon.component';
+import { LogoComponent } from '../../../shared/components/logo.component';
 import { InrPipe } from '../../../shared/pipes/inr.pipe';
 
 /** Printable invoice view (browser print → Save as PDF) rendered from the invoice API. */
 @Component({
   selector: 'app-invoice-page',
-  imports: [RouterLink, IconComponent, InrPipe],
+  imports: [RouterLink, IconComponent, LogoComponent, InrPipe],
   template: `
     <div class="bar no-print">
       <a [routerLink]="admin() ? ['/admin/orders', id()] : ['/account/orders', id()]" class="btn btn-sm"><app-icon name="arrow-left" [size]="15" /> Back to order</a>
@@ -23,9 +24,10 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
       <p class="text-center text-muted mt-32">Invoice not available.</p>
     } @else if (inv(); as i) {
       <article class="sheet">
+        <img class="wm" src="/brand/logo.svg" alt="" aria-hidden="true" />
         <header class="top">
           <div>
-            <div class="logo">{{ i.seller.name }}<span>.</span></div>
+            <app-logo class="logo" [height]="64" [alt]="i.seller.name" />
             <p>
               @if (i.seller.trade_name) { <strong>{{ i.seller.trade_name }}</strong>@if (i.seller.legal_name) { (Proprietor: {{ i.seller.legal_name }}) }<br /> }
               {{ i.seller.address }}<br />GSTIN: <strong>{{ i.seller.gstin }}</strong>@if (i.seller.state) { · State: {{ i.seller.state }} ({{ i.seller.state_code }}) }<br />{{ i.seller.email }} · {{ i.seller.phone }}
@@ -72,7 +74,11 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
     .bar { max-width: 900px; margin: 0 auto 16px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
     .sheet { max-width: 900px; margin: 0 auto; background: #fff; padding: 36px; border-radius: var(--radius); box-shadow: var(--shadow); font-size: 13px; }
     .top { display: flex; justify-content: space-between; gap: 16px; border-bottom: 3px solid var(--brand); padding-bottom: 16px; }
-    .logo { font-family: var(--font-display); font-size: 26px; font-weight: 800; } .logo span { color: var(--brand); }
+    .logo { margin-bottom: 8px; }
+    /* Watermark: the logo, faint and angled, behind the invoice content (an <img> so it also prints). */
+    .sheet { position: relative; overflow: hidden; isolation: isolate; }
+    .sheet > :not(.wm) { position: relative; z-index: 1; }
+    .wm { position: absolute; top: 50%; left: 50%; width: 72%; max-width: 620px; transform: translate(-50%, -50%) rotate(-24deg); opacity: .06; z-index: 0; pointer-events: none; user-select: none; }
     h1 { font-size: 24px; margin: 0 0 6px; }
     p { color: var(--ink-2); margin: 4px 0; }
     .parties { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
@@ -87,7 +93,12 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
     .grand td { font-weight: 800; font-size: 16px; border-top: 2px solid var(--ink); padding-top: 8px; }
     footer { margin-top: 36px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--line); padding-top: 12px; }
     @media (max-width: 640px) { .sheet { padding: 16px; } .parties { grid-template-columns: 1fr; } .items { font-size: 11px; } }
-    @media print { :host { padding: 0; background: #fff; } .sheet { box-shadow: none; padding: 0; } }
+    @media print {
+      :host { padding: 0; background: #fff; }
+      .sheet { box-shadow: none; padding: 0; overflow: visible; }
+      /* Fixed = repeated on every printed page. */
+      .wm { position: fixed; opacity: .07; }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

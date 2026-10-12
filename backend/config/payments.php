@@ -19,7 +19,7 @@ return [
         'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
         'base_url' => env('RAZORPAY_BASE_URL', 'https://api.razorpay.com/v1'),
         'timeout' => (int) env('RAZORPAY_TIMEOUT', 15),
-        'theme_color' => env('RAZORPAY_THEME_COLOR', '#d7263d'),
+        'theme_color' => env('RAZORPAY_THEME_COLOR', '#da1e25'),
     ],
 
     /*

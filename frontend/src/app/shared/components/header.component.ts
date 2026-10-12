@@ -15,10 +15,11 @@ import { IconComponent } from './icon.component';
 import { ModalComponent } from './modal.component';
 import { SearchBarComponent } from './search-bar.component';
 import { VehicleSelectorComponent } from './vehicle-selector.component';
+import { LogoComponent } from './logo.component';
 
 @Component({
   selector: 'app-header',
-  imports: [A11yModule, RouterLink, RouterLinkActive, IconComponent, SearchBarComponent, ModalComponent, VehicleSelectorComponent],
+  imports: [A11yModule, RouterLink, RouterLinkActive, IconComponent, LogoComponent, SearchBarComponent, ModalComponent, VehicleSelectorComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

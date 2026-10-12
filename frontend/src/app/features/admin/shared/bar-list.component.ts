@@ -37,7 +37,7 @@ export interface BarItem { label: string; value: number; display?: string; sub?:
 })
 export class BarListComponent {
   readonly items = input.required<BarItem[]>();
-  readonly color = input('#d7263d');
+  readonly color = input('#da1e25');
   readonly ariaLabel = input('Ranking');
   readonly emptyText = input('No data for this period');
   protected readonly rows = computed(() => {

@@ -5,11 +5,12 @@
    ========================================================================== */
 
 :root {
-  --brand: #d7263d;
-  --brand-600: #b81f33;
-  --brand-700: #961a2a;
-  --brand-50: #fdecee;
-  --brand-100: #fbd5da;
+  /* Logo red (#DA1E25) */
+  --brand: #da1e25;
+  --brand-600: #b8181e;
+  --brand-700: #961419;
+  --brand-50: #fdeceb;
+  --brand-100: #fad3d4;
   --accent: #f5a524;
   --accent-50: #fff6e5;
 

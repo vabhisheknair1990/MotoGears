@@ -1,4 +1,6 @@
 @php($inr = fn ($v) => '₹'.number_format((float) $v, 2))
+{{-- Logo embedded as a data URI so the downloaded invoice works offline and prints anywhere. --}}
+@php($logo = 'data:image/svg+xml;base64,'.base64_encode((string) @file_get_contents(resource_path('brand/logo.svg'))))
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,22 +10,25 @@
 <style>
   *{box-sizing:border-box} body{font-family:"Helvetica Neue",Arial,sans-serif;color:#1f2937;margin:0;padding:32px;font-size:13px;background:#fff}
   .wrap{max-width:860px;margin:0 auto} h1{margin:0;font-size:26px;letter-spacing:.5px} .muted{color:#6b7280}
-  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #dc2626;padding-bottom:16px;margin-bottom:20px}
-  .brand{font-size:22px;font-weight:800;color:#111827}.brand span{color:#dc2626}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #da1e25;padding-bottom:16px;margin-bottom:20px}
+  .brand img{height:64px;width:auto;display:block;margin-bottom:8px}
+  .wrap{position:relative;isolation:isolate}.wrap>*:not(.wm){position:relative;z-index:1}
+  .wm{position:absolute;top:50%;left:50%;width:72%;max-width:620px;transform:translate(-50%,-50%) rotate(-24deg);opacity:.06;z-index:0;pointer-events:none}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
   .box h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b7280}
   table{width:100%;border-collapse:collapse;margin-top:8px} th{background:#111827;color:#fff;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px}
   td{padding:8px;border-bottom:1px solid #e5e7eb;vertical-align:top} td.r,th.r{text-align:right}
   .totals{margin-left:auto;width:320px;margin-top:16px}.totals td{border:none;padding:4px 8px}.totals tr.grand td{font-size:16px;font-weight:700;border-top:2px solid #111827;padding-top:8px}
   .foot{margin-top:40px;border-top:1px solid #e5e7eb;padding-top:12px;font-size:11px}
-  @media print{body{padding:0}.noprint{display:none}}
+  @media print{body{padding:0}.noprint{display:none}.wm{position:fixed;opacity:.07}}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <img class="wm" src="{{ $logo }}" alt="" aria-hidden="true">
   <div class="head">
     <div>
-      <div class="brand">{{ $invoice['seller']['name'] }}<span>.</span></div>
+      <div class="brand"><img src="{{ $logo }}" alt="{{ $invoice['seller']['name'] }}"></div>
       @if(!empty($invoice['seller']['trade_name']))
         <div><strong>{{ $invoice['seller']['trade_name'] }}</strong>@if(!empty($invoice['seller']['legal_name'])) <span class="muted">(Proprietor: {{ $invoice['seller']['legal_name'] }})</span>@endif</div>
       @endif
@@ -91,7 +96,7 @@
     This is a computer-generated invoice and does not require a signature. Goods once sold are subject to our return policy.<br>
     Thank you for shopping with {{ $invoice['seller']['name'] }}.
   </div>
-  <p class="noprint" style="text-align:center;margin-top:24px"><button onclick="window.print()" style="padding:10px 20px;background:#dc2626;color:#fff;border:0;border-radius:6px;cursor:pointer">Print / Save as PDF</button></p>
+  <p class="noprint" style="text-align:center;margin-top:24px"><button onclick="window.print()" style="padding:10px 20px;background:#da1e25;color:#fff;border:0;border-radius:6px;cursor:pointer">Print / Save as PDF</button></p>
 </div>
 </body>
 </html>

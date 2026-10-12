@@ -47,6 +47,9 @@ class BusinessDetailsTest extends TestCase
         $this->assertStringContainsString('M/S MOTO GEARS', $html);
         $this->assertStringContainsString('Proprietor: Ashwin Joe Thomas', $html);
         $this->assertStringContainsString('32AWCPT0591R2ZY', $html);
+        // Logo in the header and as a watermark, embedded so the file works offline.
+        $this->assertSame(2, substr_count($html, 'src="data:image/svg+xml;base64,'));
+        $this->assertStringContainsString('class="wm"', $html);
     }
 
     public function test_supply_to_another_state_is_igst(): void
@@ -91,5 +94,14 @@ class BusinessDetailsTest extends TestCase
         $this->actingAsStaff();
         $this->putJson($this->api('admin/settings'), ['settings' => ['gstin' => '12345']])->assertUnprocessable();
         $this->putJson($this->api('admin/settings'), ['settings' => ['gstin' => '32AWCPT0591R2ZY', 'trade_name' => 'M/S MOTO GEARS']])->assertOk();
+    }
+
+    public function test_order_emails_show_the_logo(): void
+    {
+        config(['app.frontend_url' => 'https://themotogears.in']);
+        $order = \App\Models\Order::find($this->orderTo('Kerala')['id']);
+        $html = (string) (new \App\Notifications\OrderPlacedNotification($order))->toMail($order->user)->render();
+        $this->assertStringContainsString('https://themotogears.in/brand/logo-email.png', $html);
+        $this->assertStringContainsString('#da1e25', strtolower($html));
     }
 }

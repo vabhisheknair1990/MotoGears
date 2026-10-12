@@ -23,7 +23,7 @@ export class LogoComponent {
   readonly on = input<'light' | 'dark'>('light');
   readonly variant = input<'full' | 'mark'>('full');
   readonly height = input(40);
-  readonly alt = input('Moto Gears');
+  readonly alt = input('MotoGears');
 
   protected readonly src = computed(() => (this.variant() === 'mark' ? LOGO.mark : this.on() === 'dark' ? LOGO.onDark : LOGO.onLight));
   protected readonly width = computed(() => Math.round(this.height() * (this.variant() === 'mark' ? 1 : LOGO_RATIO)));

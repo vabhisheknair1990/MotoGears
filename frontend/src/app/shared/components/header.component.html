@@ -17,7 +17,7 @@
   <div class="container bar">
     <button class="icon-btn hide-desktop" (click)="ui.mobileMenuOpen.set(true)" aria-label="Open menu"><app-icon name="menu" /></button>
     <a routerLink="/" class="logo" aria-label="MotoGears home">
-      <app-logo on="dark" [height]="52" alt="Moto Gears" />
+      <app-logo on="dark" [height]="52" alt="MotoGears" />
     </a>
 
     <div class="search hide-mobile"><app-search-bar /></div>
@@ -105,7 +105,7 @@
   <div class="backdrop" (click)="ui.mobileMenuOpen.set(false)"></div>
   <aside class="mobile-menu" role="dialog" aria-modal="true" aria-label="Menu" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (keydown.escape)="ui.mobileMenuOpen.set(false)">
     <div class="row between mm-head">
-      <a routerLink="/" class="logo dark" aria-label="Moto Gears home" (click)="ui.mobileMenuOpen.set(false)"><app-logo [height]="36" /></a>
+      <a routerLink="/" class="logo dark" aria-label="MotoGears home" (click)="ui.mobileMenuOpen.set(false)"><app-logo [height]="36" /></a>
       <button class="icon-btn" (click)="ui.mobileMenuOpen.set(false)" aria-label="Close menu"><app-icon name="x" /></button>
     </div>
     <a routerLink="/">Home</a>

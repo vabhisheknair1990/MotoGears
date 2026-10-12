@@ -24,7 +24,7 @@ import { LogoComponent } from './logo.component';
     <footer class="foot">
       <div class="container cols">
         <div class="about">
-          <a routerLink="/" class="logo" aria-label="Moto Gears home"><app-logo on="dark" [height]="52" /></a>
+          <a routerLink="/" class="logo" aria-label="MotoGears home"><app-logo on="dark" [height]="52" /></a>
           <p>{{ settings()?.store_tagline ?? 'Genuine parts. Perfect fit.' }} Car & bike parts and accessories from the brands mechanics trust.</p>
           <p class="contact"><app-icon name="phone" [size]="15" /> {{ settings()?.support_phone }}<br /><app-icon name="mail" [size]="15" /> {{ settings()?.support_email }}</p>
         </div>

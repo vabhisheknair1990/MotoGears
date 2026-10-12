@@ -1,3 +1,4 @@
+import { LowerCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -16,7 +17,7 @@ import { PageHeaderComponent } from '../shared/page-header.component';
 
 @Component({
   selector: 'adm-order-detail-page',
-  imports: [ReactiveFormsModule, RouterLink, AppDatePipe, InrPipe, EmptyStateComponent, IconComponent, OrderTimelineComponent, StatusBadgeComponent, PageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterLink, LowerCasePipe, AppDatePipe, InrPipe, EmptyStateComponent, IconComponent, OrderTimelineComponent, StatusBadgeComponent, PageHeaderComponent],
   templateUrl: './order-detail.page.html',
   styleUrl: './order-detail.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +33,7 @@ export class OrderDetailPage {
   protected readonly state = signal<'loading' | 'ready' | 'missing'>('loading');
   protected readonly savingStatus = signal(false);
   protected readonly savingNotes = signal(false);
+  protected readonly refunding = signal(false);
   protected readonly canManage = computed(() => this.auth.hasPermission('orders.manage'));
 
   protected readonly statusForm = this.fb.nonNullable.group({
@@ -97,6 +99,25 @@ export class OrderDetailPage {
           this.toast.error(errorMessage(err));
         },
       });
+  }
+
+  /** The automatic refund failed (e.g. low Razorpay balance): try again. */
+  protected retryRefund(): void {
+    const o = this.order();
+    if (!o || this.refunding()) return;
+    this.refunding.set(true);
+    this.api.post<AdminOrder>(`orders/${o.id}/refund`).subscribe({
+      next: (res) => {
+        this.refunding.set(false);
+        this.toast.success(res.message || 'Refund issued');
+        if (res.data?.id) this.setOrder(res.data);
+      },
+      error: (err) => {
+        this.refunding.set(false);
+        this.toast.error(errorMessage(err));
+        this.load(String(o.id));
+      },
+    });
   }
 
   protected saveNotes(): void {

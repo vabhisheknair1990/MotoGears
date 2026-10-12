@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\OrderService;
 use App\Services\Payments\RazorpayGateway;
 use App\Services\SettingsService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -43,8 +44,10 @@ class RazorpayPaymentService
             'prefill' => [
                 'name' => $order->customer_name ?? $order->user?->name ?? ($address['name'] ?? ''),
                 'email' => $order->customer_email ?? $order->user?->email ?? '',
-                'contact' => preg_replace('/[^0-9+]/', '', (string) ($order->customer_phone ?: $order->user?->phone ?: ($address['phone'] ?? ''))),
+                'contact' => self::e164((string) ($order->customer_phone ?: $order->user?->phone ?: ($address['phone'] ?? ''))),
             ],
+            // Store logo in the Razorpay window (square icon, served by the storefront).
+            'image' => rtrim((string) config('app.frontend_url'), '/').'/brand/icon-192.png',
             'notes' => ['order_number' => $order->order_number],
             'theme' => ['color' => config('payments.razorpay.theme_color')],
             'test_mode' => $this->client->isTestMode(),
@@ -89,6 +92,52 @@ class RazorpayPaymentService
         $payment = $this->findPayment($order, $rzpOrderId);
 
         return $this->orders->failOnlinePayment($payment, $reason ?: 'Payment was not completed.', [], $by);
+    }
+
+    /**
+     * Ask Razorpay whether a pending Razorpay payment was actually paid (shopper closed the
+     * window before we heard back, webhook not delivered yet…) and confirm the order if so.
+     * Spaced out per payment so page loads can call it freely.
+     */
+    public function reconcile(Payment $payment, bool $force = false): Payment
+    {
+        if ($payment->gateway !== 'razorpay' || ! $payment->gateway_order_id
+            || ! in_array($payment->status, [PaymentStatus::Initiated, PaymentStatus::Pending], true)
+            || (! $force && ! Cache::add('rzp-reconcile:'.$payment->id, 1, 15))) {
+            return $payment;
+        }
+        try {
+            $attempts = $this->client->fetchOrderPayments($payment->gateway_order_id);
+        } catch (RazorpayException) {
+            return $payment;
+        }
+        $expected = RazorpayGateway::toPaise((float) $payment->amount);
+        foreach ($attempts as $p) {
+            if (! in_array($p['status'] ?? null, ['captured', 'authorized'], true) || (int) ($p['amount'] ?? -1) !== $expected) {
+                continue;
+            }
+            if ($p['status'] === 'authorized') {
+                try {
+                    $this->client->capture($p['id'], $expected, $payment->currency);
+                } catch (RazorpayException) {
+                    return $payment;
+                }
+            }
+
+            return $this->orders->completeOnlinePayment($payment, $p['id'], $this->describe($p), null, 'reconcile');
+        }
+
+        return $payment;
+    }
+
+    /** Reconcile every pending Razorpay attempt of an order (used when an order page is opened). */
+    public function reconcileOrder(Order $order): void
+    {
+        if ($order->payment_status === \App\Enums\OrderPaymentStatus::Paid || $order->status !== \App\Enums\OrderStatus::Pending) {
+            return;
+        }
+        $order->payments()->where('gateway', 'razorpay')->whereIn('status', [PaymentStatus::Initiated, PaymentStatus::Pending])
+            ->latest('id')->take(3)->get()->each(fn (Payment $p) => $this->reconcile($p));
     }
 
     /** POST /webhooks/razorpay — signature already verified by the controller. */
@@ -155,5 +204,19 @@ class RazorpayPaymentService
             'bank' => $p['bank'] ?? null,
             'wallet' => $p['wallet'] ?? null,
         ]);
+    }
+
+    /** Indian mobile numbers as +91XXXXXXXXXX so Razorpay pre-fills them. */
+    private static function e164(string $phone): string
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        if (strlen($digits) === 10) {
+            return '+91'.$digits;
+        }
+        if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
+            return '+'.$digits;
+        }
+
+        return $digits !== '' && str_starts_with(trim($phone), '+') ? '+'.$digits : $digits;
     }
 }

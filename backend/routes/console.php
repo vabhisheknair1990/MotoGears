@@ -5,7 +5,11 @@ use App\Services\ProductSearchIndexer;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('orders:cancel-unpaid', function (OrderService $orders) {
+Artisan::command('orders:cancel-unpaid', function (OrderService $orders, \App\Services\Payments\Razorpay\RazorpayPaymentService $razorpay) {
+    // Never cancel an order Razorpay actually took money for: check pending attempts first.
+    \App\Models\Payment::where('gateway', 'razorpay')->whereIn('status', ['initiated', 'pending'])
+        ->where('created_at', '<', now()->subMinutes(2))->where('created_at', '>', now()->subDays(2))
+        ->each(fn ($p) => $razorpay->reconcile($p, true));
     $n = $orders->cancelStaleUnpaid();
     $this->info("Cancelled {$n} unpaid order(s).");
 })->purpose('Cancel online-payment orders that were never paid and release their stock');

@@ -12,6 +12,7 @@ use App\Models\Review;
 use App\Services\InvoiceService;
 use App\Services\OrderService;
 use App\Services\Payments\PaymentPayload;
+use App\Services\Payments\Razorpay\RazorpayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -45,7 +46,9 @@ class OrderController extends Controller
     {
         $model = $this->find($order);
         $this->authorize('view', $model);
-        $model->load(['items', 'statusHistory', 'payment']);
+        // Paid in Razorpay but we never heard back? Ask Razorpay before showing "unpaid".
+        app(RazorpayPaymentService::class)->reconcileOrder($model);
+        $model->refresh()->load(['items', 'statusHistory', 'payment']);
 
         $reviewed = Review::where('user_id', $request->user()->id)->whereIn('product_id', $model->items->pluck('product_id'))->pluck('product_id');
         $model->items->each(fn ($i) => $i->reviewed = $reviewed->contains($i->product_id));

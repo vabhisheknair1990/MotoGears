@@ -55,7 +55,12 @@ class RazorpayGateway implements PaymentGateway
         try {
             $refund = $this->client->refund($payment->transaction_id, self::toPaise($amount), ['order' => (string) $payment->order?->order_number]);
         } catch (RazorpayException $e) {
-            return PaymentResult::failed($e->getMessage());
+            // Razorpay pays refunds from the account balance and answers a too-small balance with a vague error.
+            $reason = str_contains(strtolower($e->getMessage()), 'invalid request sent')
+                ? 'Razorpay refused the refund — usually because the Razorpay account balance is lower than the refund amount. Add funds in the Razorpay Dashboard (or wait for incoming payments) and retry.'
+                : $e->getMessage();
+
+            return PaymentResult::failed($reason);
         }
 
         return PaymentResult::success($refund['id'] ?? ('rfnd-'.$payment->transaction_id), ['refund_status' => $refund['status'] ?? null]);

@@ -89,8 +89,29 @@ class PaymentManager
         return array_values(array_map(fn (PaymentMethod $m) => [
             'code' => $m->value,
             'label' => $m->label(),
-            'description' => $m->description(),
+            'description' => $m === PaymentMethod::Razorpay ? self::razorpayDescription() : $m->description(),
         ], array_filter(self::DISPLAY_ORDER, fn (PaymentMethod $m) => self::isOffered($m))));
+    }
+
+    /** "UPI, cards, net banking and wallets" — only what Razorpay has switched on for the account. */
+    private static function razorpayDescription(): string
+    {
+        $methods = app(Razorpay\RazorpayClient::class)->enabledMethods();
+        if ($methods === null) {
+            return PaymentMethod::Razorpay->description();
+        }
+        $names = array_values(array_filter([
+            ! empty($methods['upi']) ? 'UPI' : null,
+            ! empty($methods['card']) ? 'credit/debit cards' : null,
+            ! empty(array_filter((array) ($methods['netbanking'] ?? []))) ? 'net banking' : null,
+            ! empty(array_filter((array) ($methods['wallet'] ?? []))) ? 'wallets' : null,
+        ]));
+        if (! $names) {
+            return PaymentMethod::Razorpay->description();
+        }
+        $last = array_pop($names);
+
+        return ucfirst(($names ? implode(', ', $names).' and ' : '').$last).' — secure checkout by Razorpay.';
     }
 
     public static function isOffered(PaymentMethod $method): bool

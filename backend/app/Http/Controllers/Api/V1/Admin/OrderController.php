@@ -73,6 +73,15 @@ class OrderController extends Controller
         return $this->ok(new OrderResource($order), 'Order retrieved successfully');
     }
 
+    /** POST /admin/orders/{order}/refund — retry a refund that failed when the order was cancelled. */
+    public function retryRefund(Request $request, Order $order): JsonResponse
+    {
+        $this->authorize('updateStatus', $order);
+        $updated = $this->orders->retryRefund($order, $request->user());
+
+        return $this->ok(new OrderResource($updated->load(['user', 'items', 'statusHistory.user', 'payment', 'payments'])), 'Refund issued');
+    }
+
     public function updateStatus(OrderStatusRequest $request, Order $order): JsonResponse
     {
         $this->authorize('updateStatus', $order);

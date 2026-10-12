@@ -250,6 +250,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('orders/{order}/invoice', [Admin\OrderController::class, 'invoice'])->middleware('permission:orders.view,orders.manage')->name('orders.invoice');
         Route::get('orders/{order}/invoice/download', [Admin\OrderController::class, 'downloadInvoice'])->middleware('permission:orders.view,orders.manage')->name('orders.invoice.download');
         Route::patch('orders/{order}/status', [Admin\OrderController::class, 'updateStatus'])->middleware('permission:orders.manage')->name('orders.status');
+        Route::post('orders/{order}/refund', [Admin\OrderController::class, 'retryRefund'])->middleware('permission:orders.manage')->name('orders.refund');
         Route::patch('orders/{order}', [Admin\OrderController::class, 'update'])->middleware('permission:orders.manage')->name('orders.update');
 
         Route::middleware('permission:customers.view')->group(function () {

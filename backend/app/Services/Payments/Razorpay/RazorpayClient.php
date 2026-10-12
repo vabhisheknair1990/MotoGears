@@ -5,6 +5,7 @@ namespace App\Services\Payments\Razorpay;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -44,6 +45,44 @@ class RazorpayClient
     public function fetchPayment(string $paymentId): array
     {
         return $this->send('get', 'payments/'.rawurlencode($paymentId));
+    }
+
+    /**
+     * Payment methods switched on for this Razorpay account (GET /methods?key_id=…), cached for
+     * 30 minutes. Lets the store hide methods Razorpay hasn't enabled (e.g. UPI before KYC).
+     * Null when Razorpay can't be asked right now.
+     */
+    public function enabledMethods(): ?array
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+        $key = 'razorpay.methods.'.md5((string) $this->keyId());
+        $cached = Cache::get($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+        try {
+            $response = Http::baseUrl(rtrim((string) config('payments.razorpay.base_url'), '/'))
+                ->acceptJson()->timeout(5)->get('methods', ['key_id' => $this->keyId()]);
+        } catch (ConnectionException) {
+            return null;
+        }
+        if (! $response->successful() || ! is_array($response->json())) {
+            return null;
+        }
+        $methods = $response->json();
+        Cache::put($key, $methods, now()->addMinutes(30));
+
+        return $methods;
+    }
+
+    /** Whether Razorpay has UPI switched on for this account (true when unknown). */
+    public function upiEnabled(): bool
+    {
+        $methods = $this->enabledMethods();
+
+        return $methods === null || ! empty($methods['upi']);
     }
 
     /** GET /orders/{id}/payments — every attempt made against one Razorpay order. */

@@ -140,8 +140,11 @@ soon as keys are configured; without keys it stays hidden and the demo methods a
    ```
    (Manual setup: put the same variables in `backend/.env`.)
 3. `docker compose up -d --build` — the checkout now shows **Razorpay**.
-4. Pay with test card `4111 1111 1111 1111` (any future expiry, any CVV, OTP page → *Success*) or UPI
-   `success@razorpay`; use `failure@razorpay` to see a failed payment and the retry flow.
+4. Pay with Razorpay's **Indian** test card `5267 3181 8797 5449` (any future expiry, any CVV; on the OTP
+   screen any OTP works in test mode). `4111 1111 1111 1111` is an *international* card — accounts that
+   accept domestic cards only decline it ("accepts domestic (Indian) card payments only"), which is a
+   handy way to see the failure + retry flow. Use a real-looking mobile number (e.g. `9447012345`);
+   Razorpay rejects obviously fake ones like `9876543210`.
 
 How it works (all amounts and checks are server-side):
 
@@ -160,7 +163,17 @@ How it works (all amounts and checks are server-side):
   `https://api.themotogears.in/v1/webhooks/razorpay`, events `payment.captured`, `payment.authorized`,
   `payment.failed`, `order.paid`, and a secret you put in `RAZORPAY_WEBHOOK_SECRET`. It confirms orders even
   if the customer closes the browser before verification. Locally it needs a public tunnel (e.g. ngrok).
-- In production set `PAYMENT_DEMO_METHODS=false` to hide the simulated methods and use live `rzp_live_…` keys.
+- **Closed window, missing webhook:** opening the order (success page, My orders, guest order page) asks
+  Razorpay about pending attempts and confirms the order if it was paid; the unpaid-order job does the
+  same before it cancels anything, so a paid order is never auto-cancelled.
+- **Refunds come out of your Razorpay balance.** If the balance is lower than the refund, Razorpay
+  refuses it; the order then shows *Refund pending* in the admin with the reason and a **Retry refund**
+  button (the customer just sees "your refund is being processed").
+- Only methods Razorpay has switched on for the account are offered (checked via `GET /methods`, cached
+  30 min): e.g. UPI stays hidden until Razorpay enables it after KYC.
+- **Test mode on the live site:** with `rzp_test_…` keys the storefront shows a yellow "Test mode —
+  payments are not real" bar. Use live `rzp_live_…` keys (and a live-mode webhook) when you launch, and
+  keep `PAYMENT_DEMO_METHODS=false` in production.
 
 ### UPI — QR code and UPI ID on our own page
 

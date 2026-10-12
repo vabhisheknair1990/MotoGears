@@ -184,7 +184,9 @@ class GuestCheckoutTest extends TestCase
         $res = $this->placeGuestOrder($this->guestCart(), ['payment_method' => 'razorpay'])->assertCreated()
             ->assertJsonPath('data.razorpay.order_id', 'order_G1')
             ->assertJsonPath('data.razorpay.prefill.email', 'asha@example.com')
-            ->assertJsonPath('data.razorpay.prefill.name', 'Asha Menon');
+            ->assertJsonPath('data.razorpay.prefill.name', 'Asha Menon')
+            ->assertJsonPath('data.razorpay.prefill.contact', '+919876543210')
+            ->assertJsonPath('data.razorpay.image', rtrim(config('app.frontend_url'), '/').'/brand/icon-192.png');
         [$number, $token] = [$res->json('data.order.order_number'), $res->json('data.guest_token')];
 
         $this->asOrderOwner($token)->postJson($this->api("guest/orders/{$number}/razorpay/verify"), [

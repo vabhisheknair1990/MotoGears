@@ -60,7 +60,9 @@ class GuestOrderController extends Controller
 
     public function show(Request $request, string $order): JsonResponse
     {
-        $model = $this->authorizeGuest($request, $order)->load(['items', 'statusHistory', 'payment']);
+        $model = $this->authorizeGuest($request, $order);
+        $this->razorpay->reconcileOrder($model);
+        $model->refresh()->load(['items', 'statusHistory', 'payment']);
 
         return $this->ok(new OrderResource($model), 'Order retrieved successfully');
     }

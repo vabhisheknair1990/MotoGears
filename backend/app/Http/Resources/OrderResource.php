@@ -64,6 +64,8 @@ class OrderResource extends JsonResource
             'can_cancel' => $this->status->isCancellableByCustomer(),
             'can_pay' => $this->status === OrderStatus::Pending && $this->payment_status !== OrderPaymentStatus::Paid && $this->payment_method->value !== 'cod',
             'can_review' => ! $this->is_guest && in_array($this->status, [OrderStatus::Confirmed, OrderStatus::Processing, OrderStatus::Packed, OrderStatus::Shipped, OrderStatus::OutForDelivery, OrderStatus::Delivered], true),
+            // Cancelled / returned but the money is still with us (automatic refund failed).
+            'refund_pending' => $this->when($isAdmin, fn () => in_array($this->status, [OrderStatus::Cancelled, OrderStatus::Refunded], true) && $this->payment_status === OrderPaymentStatus::Paid),
             'allowed_transitions' => $this->when($isAdmin, fn () => array_map(fn (OrderStatus $s) => ['value' => $s->value, 'label' => $s->label()], $this->status->allowedTransitions())),
             'placed_at' => $this->placed_at?->toIso8601String(),
             'shipped_at' => $this->shipped_at?->toIso8601String(),

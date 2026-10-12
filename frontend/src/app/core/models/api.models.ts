@@ -262,6 +262,8 @@ export interface UpiSession {
 export interface RazorpayCheckoutOptions {
   key: string; order_id: string; amount: number; currency: string; name: string; description: string;
   prefill: { name: string; email: string; contact: string }; notes: Record<string, string>; theme: { color: string }; test_mode: boolean;
+  /** Store logo shown in the Razorpay window. */
+  image?: string;
 }
 
 export interface CheckoutSummary {
@@ -326,6 +328,8 @@ export interface Order {
   can_pay: boolean;
   can_review: boolean;
   allowed_transitions?: { value: OrderStatus; label: string }[];
+  /** Admin: cancelled / returned but the automatic refund failed. */
+  refund_pending?: boolean;
   placed_at: string | null;
   shipped_at: string | null;
   delivered_at: string | null;

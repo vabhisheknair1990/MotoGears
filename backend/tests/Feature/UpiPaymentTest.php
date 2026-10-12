@@ -37,6 +37,8 @@ class UpiPaymentTest extends TestCase
     {
         config(['payments.razorpay.key_id' => 'rzp_test_KEY', 'payments.razorpay.key_secret' => 'sek',
             'payments.razorpay.webhook_secret' => 'whsec', 'payments.razorpay.base_url' => 'https://api.razorpay.test/v1']);
+        // Razorpay reports UPI as enabled for the account (GET /methods, cached).
+        \Illuminate\Support\Facades\Cache::put('razorpay.methods.'.md5('rzp_test_KEY'), ['upi' => true, 'card' => true], 3600);
     }
 
     // ── Offering UPI ──────────────────────────────────────────────
@@ -286,5 +288,40 @@ class UpiPaymentTest extends TestCase
         // Nothing was lost: the order is still pending with its stock reserved.
         $this->assertSame('pending', Order::find($order['id'])->status->value);
         $this->assertSame(1, Inventory::where('product_id', $p->id)->value('reserved'));
+    }
+
+    public function test_upi_is_hidden_until_razorpay_enables_it(): void
+    {
+        $this->useRazorpay();
+        \Illuminate\Support\Facades\Cache::flush();
+        $methods = ['card' => true, 'upi' => false, 'netbanking' => ['HDFC' => 'HDFC Bank'], 'wallet' => ['mobikwik' => true]];
+        Http::fake(['*/methods*' => function () use (&$methods) { return Http::response($methods); }]);
+
+        $options = collect($this->getJson($this->api('settings'))->json('data.payment_methods'));
+        $this->assertNotContains('upi', $options->pluck('code'));
+        $this->assertSame('Credit/debit cards, net banking and wallets — secure checkout by Razorpay.', $options->firstWhere('code', 'razorpay')['description']);
+
+        \Illuminate\Support\Facades\Cache::flush();
+        $methods['upi'] = true;
+        $options = collect($this->getJson($this->api('settings'))->json('data.payment_methods'));
+        $this->assertSame('upi', $options->pluck('code')->first());
+        $this->assertSame('UPI, credit/debit cards, net banking and wallets — secure checkout by Razorpay.', $options->firstWhere('code', 'razorpay')['description']);
+    }
+
+    public function test_razorpay_feature_errors_are_not_reported_as_a_wrong_upi_id(): void
+    {
+        $this->useRazorpay();
+        Http::fake(function (HttpRequest $req) {
+            $path = parse_url($req->url(), PHP_URL_PATH);
+
+            return match (true) {
+                $path === '/v1/orders' => Http::response(['id' => 'order_N1', 'status' => 'created']),
+                str_contains($path, '/payments/') => Http::response(['error' => ['code' => 'BAD_REQUEST_ERROR', 'description' => 'The requested URL was not found on the server.']], 400),
+                default => Http::response([], 500),
+            };
+        });
+        [$order] = $this->placeUpiOrder();
+        $this->postJson($this->api("orders/{$order['id']}/upi/collect"), ['vpa' => 'asha@okaxis'])
+            ->assertStatus(503)->assertJsonPath('message', 'UPI payments are temporarily unavailable.')->assertJsonPath('fallback', 'razorpay');
     }
 }

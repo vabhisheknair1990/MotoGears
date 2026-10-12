@@ -24,9 +24,10 @@ class RazorpayUpiProvider implements UpiProvider
         return 'razorpay';
     }
 
+    /** Only when Razorpay has UPI switched on for the account (it is off until KYC/activation). */
     public function isAvailable(): bool
     {
-        return $this->client->isConfigured();
+        return $this->client->isConfigured() && $this->client->upiEnabled();
     }
 
     public function isDemo(): bool
@@ -75,8 +76,9 @@ class RazorpayUpiProvider implements UpiProvider
         try {
             $res = $this->client->validateVpa($vpa);
         } catch (RazorpayException $e) {
-            // 400 = Razorpay says the VPA is invalid; anything else = can't verify, let the request decide.
-            return $e->getCode() === 400 ? ['valid' => false, 'name' => null] : null;
+            // Only a 400 that is about the VPA itself means "invalid"; anything else (feature not
+            // enabled, network, …) means we can't verify — let the collect request decide.
+            return $e->getCode() === 400 && self::isAboutVpa($e->getMessage()) ? ['valid' => false, 'name' => null] : null;
         }
 
         return ['valid' => (bool) ($res['success'] ?? false), 'name' => $res['customer_name'] ?? null];
@@ -152,11 +154,19 @@ class RazorpayUpiProvider implements UpiProvider
                 'upi' => $upi,
             ], fn ($v) => $v !== null && $v !== ''));
         } catch (RazorpayException $e) {
-            $message = $upi['flow'] === 'collect' && $e->getCode() === 400
+            $message = $upi['flow'] === 'collect' && $e->getCode() === 400 && self::isAboutVpa($e->getMessage())
                 ? 'Could not send a payment request to this UPI ID. Check the ID, or scan the QR code instead.'
                 : 'UPI payments are temporarily unavailable.';
 
             throw new UpiException($message, $e->getCode(), $e);
         }
+    }
+
+    /** Razorpay error text that is about the UPI ID (vs. "not enabled", "URL not found", …). */
+    private static function isAboutVpa(string $message): bool
+    {
+        $m = strtolower($message);
+
+        return (str_contains($m, 'vpa') || str_contains($m, 'upi id')) && ! str_contains($m, 'not enabled') && ! str_contains($m, 'not found on the server');
     }
 }

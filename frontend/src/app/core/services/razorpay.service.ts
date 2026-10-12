@@ -67,6 +67,7 @@ export class RazorpayService {
         name: options.name,
         description: options.description,
         prefill: options.prefill,
+        image: options.image,
         notes: options.notes,
         theme: options.theme,
         retry: { enabled: true },

@@ -13,6 +13,14 @@
     @if (o.coupon_code) { <span class="badge badge-accent">Coupon {{ o.coupon_code }}</span> }
   </div>
 
+  @if (o.refund_pending) {
+    <div class="alert alert-danger refund-alert" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <div class="grow"><strong>Refund pending.</strong> This order was {{ o.status_label | lowercase }} but the automatic refund of {{ o.grand_total | inr }} failed — see the timeline for the reason.</div>
+      @if (canManage()) { <button type="button" class="btn btn-sm btn-primary" (click)="retryRefund()" [disabled]="refunding()">@if (refunding()) { <span class="spinner"></span> } Retry refund</button> }
+    </div>
+  }
+
   <div class="layout">
     <div class="stack-18">
       <section class="card">

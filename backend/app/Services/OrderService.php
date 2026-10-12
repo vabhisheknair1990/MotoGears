@@ -274,17 +274,7 @@ class OrderService
             $order->statusHistory()->create(['status' => $to, 'comment' => $comment ?: 'Status changed to '.$to->label(), 'user_id' => $by?->id]);
 
             if (in_array($to, [OrderStatus::Cancelled, OrderStatus::Refunded], true) && $order->payment_status === OrderPaymentStatus::Paid) {
-                $payment = $this->payments->refund($order);
-                if ($payment) {
-                    $refunded = $payment->status === PaymentStatus::Refunded;
-                    $order->statusHistory()->create([
-                        'status' => $to,
-                        'comment' => $refunded
-                            ? 'Refund of ₹'.number_format((float) $payment->amount, 2).' issued to original payment method.'
-                            : 'Automatic refund failed ('.($payment->meta['refund_error'] ?? 'gateway error').'). Please refund manually from the payment dashboard.',
-                        'user_id' => $by?->id,
-                    ]);
-                }
+                $this->issueRefund($order, $by);
             }
         });
 
@@ -292,6 +282,42 @@ class OrderService
         OrderStatusChanged::dispatch($order, $from, $to);
 
         return $order->fresh();
+    }
+
+    /** Retry the refund of a cancelled / returned order whose automatic refund failed (admin). */
+    public function retryRefund(Order $order, ?User $by): Order
+    {
+        if (! in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Refunded], true) || $order->payment_status !== OrderPaymentStatus::Paid) {
+            throw new BusinessException('There is no pending refund for this order.', 422);
+        }
+        $payment = $this->issueRefund($order, $by);
+        if ($payment?->status !== PaymentStatus::Refunded) {
+            throw new BusinessException('Refund failed again: '.($payment?->meta['refund_error'] ?? 'gateway error'), 422);
+        }
+        $this->audit->log('order.refund_retried', $order, [], ['payment' => $payment->id], $by);
+
+        return $order->fresh();
+    }
+
+    /**
+     * Refund the order's successful payment and note it in the timeline. A failure is only shown
+     * to staff (with the gateway's reason); the customer sees that the refund is being processed.
+     */
+    private function issueRefund(Order $order, ?User $by): ?Payment
+    {
+        $payment = $this->payments->refund($order);
+        if (! $payment) {
+            return null;
+        }
+        $amount = '₹'.number_format((float) $payment->amount, 2);
+        if ($payment->status === PaymentStatus::Refunded) {
+            $order->statusHistory()->create(['status' => $order->status, 'comment' => 'Refund of '.$amount.' issued to the original payment method. It usually reaches you in 5–7 business days.', 'user_id' => $by?->id]);
+        } else {
+            $order->statusHistory()->create(['status' => $order->status, 'comment' => 'Automatic refund of '.$amount.' failed: '.($payment->meta['refund_error'] ?? 'gateway error').' Use "Retry refund" on this order, or refund it from the payment dashboard.', 'is_customer_visible' => false, 'user_id' => $by?->id]);
+            $order->statusHistory()->firstOrCreate(['status' => $order->status, 'comment' => 'Your refund of '.$amount.' is being processed and will reach your original payment method.', 'is_customer_visible' => true]);
+        }
+
+        return $payment;
     }
 
     /**

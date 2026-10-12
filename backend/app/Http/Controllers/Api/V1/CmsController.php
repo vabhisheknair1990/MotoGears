@@ -87,6 +87,9 @@ class CmsController extends Controller
             'payment_methods' => \App\Services\Payments\PaymentManager::methodOptions(),
             // Unpaid online orders are released after this long (shown on the payment page).
             'unpaid_order_timeout_minutes' => (int) $settings->get('unpaid_order_timeout_minutes'),
+            // Razorpay test keys (rzp_test_…): the storefront shows a "test mode" notice.
+            'payments_test_mode' => app(\App\Services\Payments\Razorpay\RazorpayClient::class)->isConfigured()
+                && app(\App\Services\Payments\Razorpay\RazorpayClient::class)->isTestMode(),
         ]), 'Settings retrieved successfully');
     }
 }

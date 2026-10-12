@@ -9,8 +9,8 @@ class SettingsService
     public const DEFAULTS = [
         'store_name' => 'MotoGears',
         'store_tagline' => 'Genuine parts. Perfect fit.',
-        'support_phone' => '+91 80 4719 2200',
-        'support_email' => 'support@motogears.example',
+        'support_phone' => '+91 77366 88668',
+        'support_email' => 'motogears46@gmail.com',
         // Business details as on the GST registration certificate (Form GST REG-06).
         'trade_name' => 'M/S MOTO GEARS',
         'legal_name' => 'Ashwin Joe Thomas',

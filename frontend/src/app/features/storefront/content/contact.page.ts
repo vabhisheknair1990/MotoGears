@@ -24,7 +24,7 @@ import { IconComponent } from '../../../shared/components/icon.component';
         <aside class="stack">
           <div class="card card-body info">
             <app-icon name="phone" [size]="22" />
-            <div><strong>Call us</strong><a class="link" [href]="'tel:' + (settings()?.support_phone ?? '')">{{ settings()?.support_phone ?? '—' }}</a><span class="text-xs text-muted">Mon–Sat, 9:00–19:00 IST</span></div>
+            <div><strong>Call us</strong><a class="link" [href]="'tel:' + (settings()?.support_phone ?? '').replaceAll(' ', '')">{{ settings()?.support_phone ?? '—' }}</a><span class="text-xs text-muted">Mon–Sat, 9:00–19:00 IST</span></div>
           </div>
           <div class="card card-body info">
             <app-icon name="mail" [size]="22" />

@@ -32,7 +32,13 @@ import { IconComponent } from '../../../shared/components/icon.component';
           </div>
           <div class="card card-body info">
             <app-icon name="pin" [size]="22" />
-            <div><strong>Warehouse &amp; office</strong><span class="text-sm">{{ settings()?.store_address ?? '—' }}</span></div>
+            <div>
+              <strong>Registered office</strong>
+              @if (settings()?.trade_name; as trade) { <span class="text-sm fw-600">{{ trade }}</span> }
+              <span class="text-sm">{{ settings()?.store_address ?? '—' }}</span>
+              @if (settings()?.legal_name; as legal) { <span class="text-xs text-muted">Proprietor: {{ legal }}</span> }
+              @if (settings()?.gstin; as gstin) { <span class="text-xs text-muted">GSTIN: {{ gstin }}</span> }
+            </div>
           </div>
         </aside>
         <section class="card card-body">

@@ -11,8 +11,11 @@ class SettingsService
         'store_tagline' => 'Genuine parts. Perfect fit.',
         'support_phone' => '+91 80 4719 2200',
         'support_email' => 'support@motogears.example',
-        'store_address' => '14 Industrial Layout, Peenya, Bengaluru 560058',
-        'gstin' => '29ABCDE1234F1Z5',
+        // Business details as on the GST registration certificate (Form GST REG-06).
+        'trade_name' => 'M/S MOTO GEARS',
+        'legal_name' => 'Ashwin Joe Thomas',
+        'store_address' => 'Oolanpara Road, Ground Floor, TC 31/3483/3, Ambalamukku, Perurnagar, Thiruvananthapuram, Kerala 695005',
+        'gstin' => '32AWCPT0591R2ZY',
         'currency' => 'INR',
         'free_shipping_threshold' => 2999,
         'standard_shipping_cost' => 100,
@@ -41,6 +44,7 @@ class SettingsService
 
         return array_merge(array_intersect_key(self::DEFAULTS, array_flip([
             'store_name', 'store_tagline', 'support_phone', 'support_email', 'store_address', 'currency', 'free_shipping_threshold',
+            'trade_name', 'legal_name', 'gstin',
             'guest_checkout_enabled',
         ])), $public);
     }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -64,8 +64,12 @@ import { IconComponent } from './icon.component';
         </div>
       </div>
       <div class="container legal">
-        <span>© {{ year }} {{ settings()?.store_name ?? 'MotoGears' }}. Demo store — no real payments are processed.</span>
-        <span>GST invoices on every order</span>
+        <span>
+          © {{ year }} {{ settings()?.store_name ?? 'MotoGears' }}@if (settings()?.trade_name; as trade) { · {{ trade }}@if (settings()?.legal_name; as legal) { (Proprietor: {{ legal }})} }.
+          @if (settings()?.store_address; as address) { {{ address }}. }
+          @if (isDemo()) { Demo store — no real payments are processed. }
+        </span>
+        <span>@if (settings()?.gstin; as gstin) { GSTIN {{ gstin }} · }GST invoices on every order</span>
       </div>
     </footer>
   `,
@@ -77,6 +81,8 @@ export class FooterComponent {
   private readonly toast = inject(ToastService);
   protected readonly settings = toSignal(this.cms.getSettings().pipe(catchError(() => of(null))), { initialValue: null });
   protected readonly year = new Date().getFullYear();
+  /** The "demo store" note only shows while simulated payment methods are switched on. */
+  protected readonly isDemo = computed(() => !!this.settings()?.payment_methods?.some((m) => m.code.startsWith('demo_')));
   protected email = '';
   protected readonly busy = signal(false);
 

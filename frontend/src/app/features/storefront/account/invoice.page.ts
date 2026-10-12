@@ -26,11 +26,14 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
         <header class="top">
           <div>
             <div class="logo">{{ i.seller.name }}<span>.</span></div>
-            <p>{{ i.seller.address }}<br />GSTIN: {{ i.seller.gstin }}<br />{{ i.seller.email }} · {{ i.seller.phone }}</p>
+            <p>
+              @if (i.seller.trade_name) { <strong>{{ i.seller.trade_name }}</strong>@if (i.seller.legal_name) { (Proprietor: {{ i.seller.legal_name }}) }<br /> }
+              {{ i.seller.address }}<br />GSTIN: <strong>{{ i.seller.gstin }}</strong>@if (i.seller.state) { · State: {{ i.seller.state }} ({{ i.seller.state_code }}) }<br />{{ i.seller.email }} · {{ i.seller.phone }}
+            </p>
           </div>
           <div class="text-right">
             <h1>TAX INVOICE</h1>
-            <p><strong>{{ i.invoice_number }}</strong><br />Date: {{ i.invoice_date }}<br />Order: {{ i.order_number }}</p>
+            <p><strong>{{ i.invoice_number }}</strong><br />Date: {{ i.invoice_date }}<br />Order: {{ i.order_number }}@if (i.place_of_supply) {<br />Place of supply: {{ i.place_of_supply }}}</p>
           </div>
         </header>
         <section class="parties">

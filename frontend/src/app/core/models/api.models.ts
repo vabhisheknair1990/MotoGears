@@ -344,7 +344,8 @@ export interface PlaceOrderResult {
 export interface Invoice {
   invoice_number: string; invoice_date: string; order_number: string; order_id: number; status: string;
   payment_method: string; payment_status: string; transaction_id: string | null;
-  seller: { name: string; address: string; gstin: string; email: string; phone: string };
+  seller: { name: string; trade_name?: string | null; legal_name?: string | null; address: string; gstin: string; state?: string | null; state_code?: string | null; email: string; phone: string };
+  place_of_supply?: string | null;
   customer: { name: string; email: string; phone: string | null };
   billing_address: AddressSnapshot; shipping_address: AddressSnapshot;
   items: { name: string; sku: string; part_number: string | null; hsn: string; quantity: number; unit_price: number; discount: number; taxable_value: number; tax_rate: number; tax_amount: number; total: number }[];
@@ -441,5 +442,7 @@ export interface StoreSettings {
   currency: string; free_shipping_threshold: number; standard_shipping_cost?: number; express_shipping_cost?: number; cod_enabled?: boolean;
   guest_checkout_enabled?: boolean;
   unpaid_order_timeout_minutes?: number;
+  /** Registered business details (GST certificate). */
+  trade_name?: string; legal_name?: string; gstin?: string;
   payment_methods?: { code: PaymentCode; label: string; description: string }[];
 }

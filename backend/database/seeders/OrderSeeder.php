@@ -165,7 +165,7 @@ class OrderSeeder extends Seeder
                         Carbon::setTestNow($t);
                         $comment = match ($step) {
                             S::Confirmed => $paid ? 'Payment of ₹'.number_format((float) $order->grand_total, 2).' received via '.$method->label()." (Txn {$txn})" : 'Order confirmed — pay ₹'.number_format((float) $order->grand_total, 2).' in cash on delivery',
-                            S::Processing => 'Order is being processed at our Bengaluru warehouse',
+                            S::Processing => 'Order is being processed at our Thiruvananthapuram store',
                             S::Packed => 'Packed and quality-checked',
                             S::Shipped => 'Shipped via BlueDart',
                             S::OutForDelivery => 'Out for delivery',

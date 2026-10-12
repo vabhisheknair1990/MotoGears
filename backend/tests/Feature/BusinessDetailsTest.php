@@ -29,6 +29,8 @@ class BusinessDetailsTest extends TestCase
             ->assertJsonPath('data.gstin', '32AWCPT0591R2ZY')
             ->assertJsonPath('data.trade_name', 'M/S MOTO GEARS')
             ->assertJsonPath('data.legal_name', 'Ashwin Joe Thomas')
+            ->assertJsonPath('data.support_phone', '+91 77366 88668')
+            ->assertJsonPath('data.support_email', 'motogears46@gmail.com')
             ->assertJsonPath('data.store_address', 'Oolanpara Road, Ground Floor, TC 31/3483/3, Ambalamukku, Perurnagar, Thiruvananthapuram, Kerala 695005');
 
         $order = $this->orderTo('Kerala');
@@ -71,6 +73,11 @@ class BusinessDetailsTest extends TestCase
         Page::create(['title' => 'Shipping', 'slug' => 'shipping-policy', 'content' => '<p>We ship across India from our Bengaluru and Gurugram warehouses.</p>']);
 
         (require database_path('migrations/2026_10_12_000100_update_business_details_from_gst_certificate.php'))->up();
+
+        Setting::where('key', 'support_phone')->update(['value' => '+91 80 4719 2200']);
+        (require database_path('migrations/2026_10_12_000200_update_support_contact.php'))->up();
+        $this->assertSame('+91 77366 88668', Setting::where('key', 'support_phone')->value('value'));
+        $this->assertSame('motogears46@gmail.com', Setting::where('key', 'support_email')->value('value'));
 
         $this->assertSame('32AWCPT0591R2ZY', Setting::where('key', 'gstin')->value('value'));
         $this->assertTrue((bool) Setting::where('key', 'trade_name')->value('is_public'));

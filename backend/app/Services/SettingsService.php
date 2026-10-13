@@ -26,6 +26,8 @@ class SettingsService
         'unpaid_order_timeout_minutes' => 30,
         'max_quantity_per_item' => 10,
         'guest_checkout_enabled' => true,
+        // Off for now: the store sells bike parts, riding gear, accessories and oils only.
+        'sell_car_parts' => false,
     ];
 
     public function get(string $key): mixed
@@ -44,7 +46,7 @@ class SettingsService
 
         return array_merge(array_intersect_key(self::DEFAULTS, array_flip([
             'store_name', 'store_tagline', 'support_phone', 'support_email', 'store_address', 'currency', 'free_shipping_threshold',
-            'trade_name', 'legal_name', 'gstin',
+            'trade_name', 'legal_name', 'gstin', 'sell_car_parts',
             'guest_checkout_enabled',
         ])), $public);
     }

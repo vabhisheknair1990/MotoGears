@@ -10,9 +10,9 @@ export class SeoService {
   private readonly doc = inject(DOCUMENT);
 
   set(opts: { title?: string | null; description?: string | null; image?: string | null; type?: string }): void {
-    const title = opts.title ? `${opts.title} | ${environment.storeName}` : `${environment.storeName} — Genuine Car & Bike Parts Online`;
+    const title = opts.title ? `${opts.title} | ${environment.storeName}` : `${environment.storeName} — Genuine Bike Parts, Riding Gear & Accessories`;
     this.title.setTitle(title);
-    const description = (opts.description ?? 'Shop genuine car and motorcycle parts and accessories with guaranteed vehicle fitment.').replace(/<[^>]+>/g, '').slice(0, 160);
+    const description = (opts.description ?? 'Shop genuine motorcycle parts, riding gear and accessories with guaranteed fitment.').replace(/<[^>]+>/g, '').slice(0, 160);
     this.meta.updateTag({ name: 'description', content: description });
     this.meta.updateTag({ property: 'og:title', content: title });
     this.meta.updateTag({ property: 'og:description', content: description });

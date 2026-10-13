@@ -14,6 +14,7 @@ import { ProductGridComponent } from '../../../shared/components/product-grid.co
 import { RatingComponent } from '../../../shared/components/rating.component';
 import { VehicleSelectorComponent } from '../../../shared/components/vehicle-selector.component';
 import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
+import { CatalogScopeService } from '../../../core/services/catalog-scope.service';
 
 @Component({
   selector: 'app-home-page',
@@ -29,6 +30,7 @@ export class HomePage implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly vehicle = inject(VehicleStore);
+  protected readonly scope = inject(CatalogScopeService);
 
   protected readonly data = signal<Homepage | null>(null);
   protected readonly loading = signal(true);
@@ -52,7 +54,7 @@ export class HomePage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.seo.set({ title: null, description: 'Find the right parts for your vehicle. Genuine car & motorcycle parts, accessories and oils with guaranteed fitment and fast delivery across India.' });
+    this.seo.set({ title: null, description: 'Find the right parts for your vehicle. Genuine motorcycle parts, riding gear, accessories and oils with guaranteed fitment and fast delivery across India.' });
     const timer = setInterval(() => this.next(), 7000);
     this.destroyRef.onDestroy(() => clearInterval(timer));
   }

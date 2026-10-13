@@ -103,7 +103,7 @@ export class BlogListPage {
   protected readonly pageNo = computed(() => this.page());
 
   constructor() {
-    inject(SeoService).set({ title: 'Blog — maintenance guides & buying advice', description: 'Car and bike maintenance guides, product comparisons and fitment tips.' });
+    inject(SeoService).set({ title: 'Blog — maintenance guides & buying advice', description: 'Bike maintenance guides, riding tips, product comparisons and fitment advice.' });
     effect((onCleanup) => {
       const query = { page: this.page(), category: this.category(), tag: this.tag(), search: this.search() };
       this.loading.set(true);

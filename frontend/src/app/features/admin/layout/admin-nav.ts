@@ -21,7 +21,7 @@ export const ADMIN_NAV: NavSection[] = [
       { label: 'Categories', link: '/admin/categories', icon: 'grid', permission: 'categories.manage' },
       { label: 'Brands', link: '/admin/brands', icon: 'tag', permission: 'brands.manage' },
       { label: 'Attributes', link: '/admin/attributes', icon: 'sliders', permission: 'products.manage' },
-      { label: 'Vehicles', link: '/admin/vehicles', icon: 'car', permission: 'vehicles.manage' },
+      { label: 'Vehicles', link: '/admin/vehicles', icon: 'bike', permission: 'vehicles.manage' },
     ],
   },
   {

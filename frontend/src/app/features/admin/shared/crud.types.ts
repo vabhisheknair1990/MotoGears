@@ -7,7 +7,8 @@ import { Lookups, Option } from '../data/admin.models';
 export type Row = Record<string, any>;
 export type FormValue = Record<string, unknown>;
 
-export interface CrudCtx { lookups: Lookups | null; async: Record<string, Option[]> }
+/** `sellsCars`: Admin → Settings → "Sell car parts"; when off, "Car" choices are left out of forms and filters. */
+export interface CrudCtx { lookups: Lookups | null; async: Record<string, Option[]>; sellsCars?: boolean }
 
 export type FieldType =
   | 'text' | 'email' | 'url' | 'password' | 'textarea' | 'html' | 'number' | 'select' | 'checkbox'

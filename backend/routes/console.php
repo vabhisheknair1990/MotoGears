@@ -86,6 +86,37 @@ Artisan::command('app:remove-demo-staff', function () {
     $this->info('Disabled '.$users->count().' demo staff account(s). Make sure you have your own admin first (app:create-admin).');
 })->purpose('Lock the demo staff logins (admin@example.com etc.) on a live server');
 
+Artisan::command('app:clean-live-data {--force : Skip the confirmation question}', function (\App\Services\LiveDataCleaner $cleaner) {
+    if (! $cleaner->hasRealSuperAdmin()) {
+        $this->error('Create your own super admin first (php artisan app:create-admin you@yourdomain.com) — this removes every @example.com login.');
+
+        return 1;
+    }
+    $plan = $cleaner->plan();
+    $labels = [
+        'demo_users' => 'Demo logins & customers (@example.com)', 'demo_orders' => 'Their orders (and @example.com guest orders)',
+        'car_products' => 'Car products', 'car_brands' => 'Brands that only sell car parts', 'car_categories' => 'Car categories',
+        'car_models' => 'Car vehicle models (with their variants)', 'car_makers' => 'Car-only vehicle makers',
+        'car_testimonials' => 'Car testimonials', 'car_blog_posts' => 'Car blog posts', 'car_search_terms' => 'Car search terms',
+        'demo_coupons' => 'Demo coupons', 'demo_messages' => 'Demo contact messages', 'demo_subscribers' => 'Demo newsletter sign-ups',
+    ];
+    $this->table(['To remove', 'Count'], collect($labels)->map(fn ($label, $key) => [$label, count($plan[$key])])->values()->all());
+    if ($plan['kept_coupons']) {
+        $this->line('Kept because a home-page banner advertises it: '.implode(', ', $plan['kept_coupons']));
+    }
+    $this->line('Kept: real orders and customers, your staff, bike & universal products, categories, brands, bike makes, settings, pages, FAQs and other content.');
+    if (! $this->option('force') && ! $this->confirm('Permanently delete the items above? Take a database backup first.')) {
+        $this->info('Nothing was changed.');
+
+        return 0;
+    }
+    $done = $cleaner->run($plan);
+    $this->table(['Removed', 'Rows'], collect($done)->map(fn ($n, $k) => [$k, $n])->values()->all());
+    $this->info('Done. Stock reservations and product ratings were recalculated.');
+
+    return 0;
+})->purpose('Remove demo logins/customers/orders/coupons and the whole car catalogue from a live store');
+
 Artisan::command('product-imports:prune', function () {
     $days = (int) config('imports.keep_files_days', 30);
     $n = 0;

@@ -24,7 +24,11 @@ export function categoryOptions(lk: Lookups | null): Option<number>[] {
 
 const brandOptions = (ctx: CrudCtx): Option[] => (ctx.lookups?.brands ?? []).map((b) => ({ value: b.id, label: b.name }));
 const manufacturerOptions = (ctx: CrudCtx): Option[] => (ctx.lookups?.manufacturers ?? []).map((m) => ({ value: m.id, label: m.name, group: humanize(m.vehicle_type) }));
-const vehicleTypes: Option[] = [{ value: 'car', label: 'Car' }, { value: 'motorcycle', label: 'Motorcycle' }];
+/** Car / Motorcycle — "Car" only while the store sells car parts (or the record already is one). */
+const vehicleTypes = (ctx: CrudCtx, current?: unknown): Option[] => [
+  ...(ctx.sellsCars || current === 'car' ? [{ value: 'car', label: 'Car' }] : []),
+  { value: 'motorcycle', label: 'Motorcycle' },
+];
 
 const json = (v: unknown) => (v ? JSON.stringify(v, null, 2) : '—');
 
@@ -56,7 +60,7 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
       { key: 'name', label: 'Name', type: 'text', required: true, maxLength: 120 },
       { key: 'slug', label: 'Slug', type: 'text', maxLength: 140, hint: 'Leave blank to generate from the name.', pattern: /^[a-z0-9-_]+$/, patternMessage: 'Lowercase letters, numbers and dashes only.' },
       { key: 'parent_id', label: 'Parent category', type: 'select', placeholder: '— None (top level) —', options: (ctx, v) => categoryOptions(ctx.lookups).filter((o) => o.value !== v['id']) },
-      { key: 'vehicle_type', label: 'Vehicle type', type: 'select', placeholder: 'Universal', options: [...vehicleTypes, { value: 'universal', label: 'Universal' }] },
+      { key: 'vehicle_type', label: 'Vehicle type', type: 'select', placeholder: 'Universal', options: (ctx, v) => [...vehicleTypes(ctx, v['vehicle_type']), { value: 'universal', label: 'Universal' }] },
       { key: 'icon', label: 'Icon name', type: 'text', maxLength: 60, placeholder: 'e.g. wrench' },
       { key: 'sort_order', label: 'Sort order', type: 'number', min: 0, default: 0 },
       { key: 'description', label: 'Description', type: 'textarea', maxLength: 2000 },
@@ -116,7 +120,7 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
     toggle: 'is_active',
     refreshesLookups: true,
     rowTitle: (r) => r['name'],
-    filters: [{ key: 'vehicle_type', label: 'Types', options: [...vehicleTypes, { value: 'both', label: 'Both' }] }],
+    filters: [{ key: 'vehicle_type', label: 'Types', options: (ctx) => [...vehicleTypes(ctx), ...(ctx.sellsCars ? [{ value: 'both', label: 'Both' }] : [])] }],
     columns: [
       { key: 'logo', label: '', type: 'image' },
       { key: 'name', label: 'Manufacturer', type: 'strong', sub: (r) => r['country'] },
@@ -127,7 +131,7 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
     links: [{ label: 'Models', path: () => ['/admin/vehicles/models'], query: (r) => ({ manufacturer_id: r['id'] }) }],
     fields: [
       { key: 'name', label: 'Name', type: 'text', required: true, maxLength: 100 },
-      { key: 'vehicle_type', label: 'Makes', type: 'select', required: true, options: [...vehicleTypes, { value: 'both', label: 'Cars & motorcycles' }] },
+      { key: 'vehicle_type', label: 'Makes', type: 'select', required: true, options: (ctx, v) => [...vehicleTypes(ctx, v['vehicle_type']), ...(ctx.sellsCars || v['vehicle_type'] === 'both' ? [{ value: 'both', label: 'Cars & motorcycles' }] : [])] },
       { key: 'country', label: 'Country', type: 'text', maxLength: 60 },
       { key: 'sort_order', label: 'Sort order', type: 'number', min: 0, default: 0 },
       { key: 'logo', label: 'Logo', type: 'image', imageKey: 'logo', wide: true },
@@ -157,7 +161,7 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
     fields: [
       { key: 'vehicle_manufacturer_id', label: 'Manufacturer', type: 'select', required: true, options: manufacturerOptions },
       { key: 'name', label: 'Model name', type: 'text', required: true, maxLength: 100 },
-      { key: 'vehicle_type', label: 'Vehicle type', type: 'select', required: true, options: vehicleTypes },
+      { key: 'vehicle_type', label: 'Vehicle type', type: 'select', required: true, options: (ctx, v) => vehicleTypes(ctx, v['vehicle_type']) },
       { key: 'body_type', label: 'Body type', type: 'text', maxLength: 40, placeholder: 'Hatchback, SUV, Scooter…' },
       { key: 'is_active', label: 'Active', type: 'checkbox', default: true },
     ],

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { CatalogScopeService } from '../../../core/services/catalog-scope.service';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -55,7 +56,8 @@ export class CrudPage {
 
   protected readonly lookups = toSignal(this.api.lookups().pipe(catchError(() => of(null))), { initialValue: null });
   protected readonly asyncOpts = signal<Record<string, Option[]>>({});
-  protected readonly ctx = computed<CrudCtx>(() => ({ lookups: this.lookups(), async: this.asyncOpts() }));
+  private readonly scope = inject(CatalogScopeService);
+  protected readonly ctx = computed<CrudCtx>(() => ({ lookups: this.lookups(), async: this.asyncOpts(), sellsCars: this.scope.sellsCars() }));
 
   protected readonly list = new ListState<Row>((q) => this.fetch(q));
 

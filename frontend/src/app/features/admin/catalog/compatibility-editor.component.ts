@@ -56,7 +56,7 @@ import { AdminModel, AdminVariant, CompatibilityInput, CompatibilityRow } from '
       <ul class="rows">
         @for (r of rows(); track $index) {
           <li>
-            <app-icon name="car" [size]="16" />
+            <app-icon name="bike" [size]="16" />
             <span class="grow"><strong>{{ r.manufacturer.name }}</strong>@if (r.model) { › {{ r.model.name }} }@if (r.variant) { › {{ r.variant.name }} }
               @if (!r.model) { <span class="badge">all models</span> } @else if (!r.variant) { <span class="badge">all variants</span> }
               @if (r.year_from || r.year_to) { <span class="text-muted text-sm"> · {{ r.year_from ?? '…' }}–{{ r.year_to ?? 'present' }}</span> }

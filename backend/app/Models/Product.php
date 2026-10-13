@@ -97,9 +97,11 @@ class Product extends Model
     }
 
     // ── Scopes ─────────────────────────────────────────────────────
+    /** On sale in the storefront (car-only products are left out while the store doesn't sell car parts). */
     public function scopeActive(Builder $q): Builder
     {
-        return $q->where('products.is_active', true);
+        return $q->where('products.is_active', true)
+            ->when(! \App\Support\Catalog::sellsCars(), fn ($q) => $q->where('products.vehicle_type', '!=', 'car'));
     }
 
     /**

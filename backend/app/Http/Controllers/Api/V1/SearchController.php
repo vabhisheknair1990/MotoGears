@@ -7,6 +7,7 @@ use App\Http\Resources\ProductCardResource;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\SearchTerm;
+use App\Support\Catalog;
 use App\Models\VehicleModel;
 use App\Services\ProductQueryService;
 use Illuminate\Http\JsonResponse;
@@ -64,13 +65,15 @@ class SearchController extends Controller
             'vehicles' => VehicleModel::active()->with('manufacturer:id,name')
                 ->where(fn ($w) => $w->where('name', 'like', $like)->orWhereHas('manufacturer', fn ($m) => $m->where('name', 'like', $like)))
                 ->limit(4)->get()->map(fn ($m) => ['id' => $m->id, 'name' => $m->manufacturer->name.' '.$m->name, 'manufacturer_id' => $m->vehicle_manufacturer_id]),
-            'terms' => SearchTerm::where('term', 'like', mb_strtolower($q).'%')->where('results', '>', 0)->orderByDesc('hits')->limit(5)->pluck('term'),
+            'terms' => SearchTerm::where('term', 'like', mb_strtolower($q).'%')->where('results', '>', 0)->orderByDesc('hits')->limit(10)->pluck('term')
+                ->reject(fn ($t) => ! Catalog::sellsCars() && Catalog::mentionsCar($t))->take(5)->values(),
         ], 'Suggestions retrieved');
     }
 
     public function popular(): JsonResponse
     {
-        $terms = SearchTerm::where('results', '>', 0)->orderByDesc('hits')->limit(10)->pluck('term');
+        $terms = SearchTerm::where('results', '>', 0)->orderByDesc('hits')->limit(25)->pluck('term')
+            ->reject(fn ($t) => ! Catalog::sellsCars() && Catalog::mentionsCar($t))->take(10)->values();
 
         return $this->ok($terms, 'Popular searches retrieved');
     }

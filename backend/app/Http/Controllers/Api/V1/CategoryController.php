@@ -15,8 +15,8 @@ class CategoryController extends Controller
     public function index(Request $request): JsonResponse
     {
         $tree = StorefrontCache::remember('storefront.category_tree', function () use ($request) {
-            $roots = Category::active()->roots()->withCount(['products' => fn ($q) => $q->where('is_active', true)])
-                ->with(['children' => fn ($q) => $q->active()->withCount(['products' => fn ($p) => $p->where('is_active', true)])
+            $roots = Category::active()->roots()->withCount(['products' => fn ($q) => $q->active()])
+                ->with(['children' => fn ($q) => $q->active()->withCount(['products' => fn ($p) => $p->active()])
                     ->with(['children' => fn ($c) => $c->active()])])
                 ->orderBy('sort_order')->get();
 
@@ -29,7 +29,7 @@ class CategoryController extends Controller
     public function show(Request $request, string $slug): JsonResponse
     {
         $category = Category::active()->where('slug', $slug)
-            ->with(['parent', 'children' => fn ($q) => $q->active()->withCount(['products' => fn ($p) => $p->where('is_active', true)])])
+            ->with(['parent', 'children' => fn ($q) => $q->active()->withCount(['products' => fn ($p) => $p->active()])])
             ->firstOrFail();
 
         $breadcrumbs = [];

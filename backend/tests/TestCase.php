@@ -24,6 +24,8 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
         Cache::flush();
         $this->seed([RolesAndPermissionsSeeder::class, SettingsSeeder::class]);
+        // Most tests use the factories' car products; CarCatalogueTest covers the "no cars" storefront.
+        $this->sellCarParts(true);
         $this->withHeaders(['Accept' => 'application/json']);
     }
 
@@ -66,5 +68,11 @@ abstract class TestCase extends BaseTestCase
     protected function api(string $path): string
     {
         return self::API.'/'.ltrim($path, '/');
+    }
+
+    protected function sellCarParts(bool $on): void
+    {
+        \App\Models\Setting::where('key', 'sell_car_parts')->update(['value' => $on ? '1' : '0']);
+        Cache::flush();
     }
 }

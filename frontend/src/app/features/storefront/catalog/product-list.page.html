@@ -3,6 +3,12 @@
     <app-breadcrumb [items]="crumbs()" />
   </div>
 
+  @if (notFound()) {
+    <app-empty-state icon="search" [title]="mode() === 'brand' ? 'Brand not found.' : 'Category not found.'" message="This section isn't available right now. Browse the rest of the shop instead.">
+      <a class="btn btn-primary" routerLink="/shop">Browse all parts</a>
+    </app-empty-state>
+  } @else {
+
   @if (mode() === 'category' && category(); as c) {
     <header class="list-head">
       <div class="grow">
@@ -31,7 +37,7 @@
 
   @if (vehicle.selected()) {
     <div class="vbar" [class.off]="!filteringByVehicle()">
-      <app-icon [name]="vehicle.selected()?.vehicleType === 'motorcycle' ? 'bike' : 'car'" [size]="20" />
+      <app-icon [name]="vehicle.selected()?.vehicleType === 'car' ? 'car' : 'bike'" [size]="20" />
       <span class="grow">
         @if (filteringByVehicle()) { Showing parts that fit your <strong>{{ vehicle.fullLabel() }}</strong> }
         @else { Showing all parts. Your vehicle: <strong>{{ vehicle.fullLabel() }}</strong> }
@@ -41,7 +47,7 @@
     </div>
   } @else {
     <div class="vbar off">
-      <app-icon name="car" [size]="20" />
+      <app-icon name="bike" [size]="20" />
       <span class="grow">Select your vehicle to see only parts that fit.</span>
       <button type="button" class="btn btn-sm btn-primary" (click)="ui.vehicleModalOpen.set(true)">Select vehicle</button>
     </div>
@@ -97,6 +103,7 @@
       }
     </section>
   </div>
+  }
 </div>
 
 @if (filtersOpen()) {

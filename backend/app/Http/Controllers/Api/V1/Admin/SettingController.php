@@ -40,6 +40,7 @@ class SettingController extends Controller
             'settings.store_address' => ['sometimes', 'string', 'max:255'],
             'settings.gstin' => ['sometimes', 'string', 'regex:/^\d{2}[A-Z0-9]{13}$/'],
             'settings.trade_name' => ['sometimes', 'string', 'max:150'],
+            'settings.sell_car_parts' => ['sometimes', 'boolean'],
             'settings.legal_name' => ['sometimes', 'string', 'max:150'],
             'settings.free_shipping_threshold' => ['sometimes', 'numeric', 'min:0'],
             'settings.standard_shipping_cost' => ['sometimes', 'numeric', 'min:0'],
@@ -62,6 +63,9 @@ class SettingController extends Controller
             ]);
         }
         $audit->log('settings.updated', null, array_intersect_key($old, $data['settings']), $data['settings']);
+        // Cached storefront payloads (homepage, menus, category tree) depend on settings such as
+        // "Sell car parts": rebuild them on the next request.
+        \App\Services\StorefrontCache::flush();
 
         return $this->index();
     }

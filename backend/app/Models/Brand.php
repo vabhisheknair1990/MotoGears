@@ -27,8 +27,12 @@ class Brand extends Model
         return $this->hasMany(Product::class);
     }
 
+    /** Active brands; brands that only make car parts are hidden while the store doesn't sell car parts. */
     public function scopeActive(Builder $q): Builder
     {
-        return $q->where('is_active', true);
+        return $q->where('is_active', true)
+            ->when(! \App\Support\Catalog::sellsCars(), fn ($q) => $q->where(fn ($b) => $b
+                ->doesntHave('products')
+                ->orWhereHas('products', fn ($p) => $p->where('vehicle_type', '!=', 'car'))));
     }
 }

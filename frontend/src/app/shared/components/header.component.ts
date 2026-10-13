@@ -1,9 +1,10 @@
 import { A11yModule } from '@angular/cdk/a11y';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { catchError, filter, of } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
+import { CatalogScopeService } from '../../core/services/catalog-scope.service';
 import { CategoryService } from '../../core/services/category.service';
 import { WishlistService } from '../../core/services/wishlist.service';
 import { AuthStore } from '../../core/state/auth.store';
@@ -43,7 +44,13 @@ export class HeaderComponent {
   protected readonly accountOpen = signal(false);
   protected readonly openMenu = signal<string | null>(null);
 
+  private readonly scope = inject(CatalogScopeService);
+
   constructor() {
+    // A car remembered from an earlier visit means nothing while no car parts are sold.
+    effect(() => {
+      if (this.scope.known() && !this.scope.sellsCars() && this.vehicle.selected()?.vehicleType === 'car') this.vehicle.clear();
+    });
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed()).subscribe(() => {
       this.ui.mobileMenuOpen.set(false);
       this.accountOpen.set(false);

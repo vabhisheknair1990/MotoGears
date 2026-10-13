@@ -124,7 +124,7 @@ export class ContactPage {
   });
 
   constructor() {
-    inject(SeoService).set({ title: 'Contact us', description: 'Get in touch with our fitment experts for help choosing the right part for your car or bike.' });
+    inject(SeoService).set({ title: 'Contact us', description: 'Get in touch with our fitment experts for help choosing the right part for your bike.' });
   }
 
   protected show(name: keyof typeof this.form.controls): boolean {

@@ -40,7 +40,8 @@ class Category extends Model
 
     public function scopeActive(Builder $q): Builder
     {
-        return $q->where('is_active', true);
+        return $q->where('is_active', true)
+            ->when(! \App\Support\Catalog::sellsCars(), fn ($q) => $q->where($q->qualifyColumn('vehicle_type'), '!=', 'car'));
     }
 
     public function scopeRoots(Builder $q): Builder

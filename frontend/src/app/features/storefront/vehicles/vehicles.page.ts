@@ -80,7 +80,7 @@ import { errorMessage } from '../../../core/utils/http-errors';
           <app-pagination [meta]="meta()" (pageChange)="page.set($event)" />
         }
       } @else {
-        <app-empty-state icon="car" title="Select a vehicle to get started" message="Use the selector above. Your choice is remembered while you browse the store." />
+        <app-empty-state icon="bike" title="Select a vehicle to get started" message="Use the selector above. Your choice is remembered while you browse the store." />
       }
     </div>
   `,
@@ -126,7 +126,7 @@ export class VehiclesPage {
   protected readonly inGarage = computed(() => this.garage().some((g) => g.variant.id === this.store.variantId()));
 
   constructor() {
-    inject(SeoService).set({ title: 'Shop by vehicle', description: 'Find parts that fit your car or motorcycle — select make, model, year and variant.' });
+    inject(SeoService).set({ title: 'Shop by vehicle', description: 'Find parts that fit your motorcycle — select make, model, year and variant.' });
     if (this.auth.isLoggedIn()) {
       this.customer.getVehicles().pipe(catchError(() => of([])), takeUntilDestroyed()).subscribe((g) => this.garage.set(g));
     }

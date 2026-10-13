@@ -14,7 +14,7 @@ class BrandController extends Controller
     public function index(Request $request): JsonResponse
     {
         $brands = StorefrontCache::remember('storefront.brands', fn () => BrandResource::collection(
-            Brand::active()->withCount(['products' => fn ($q) => $q->where('is_active', true)])->orderBy('sort_order')->orderBy('name')->get()
+            Brand::active()->withCount(['products' => fn ($q) => $q->active()])->orderBy('sort_order')->orderBy('name')->get()
         )->resolve($request));
 
         return $this->ok($brands, 'Brands retrieved successfully');
@@ -22,7 +22,7 @@ class BrandController extends Controller
 
     public function show(Request $request, string $slug): JsonResponse
     {
-        $brand = Brand::active()->where('slug', $slug)->withCount(['products' => fn ($q) => $q->where('is_active', true)])->firstOrFail();
+        $brand = Brand::active()->where('slug', $slug)->withCount(['products' => fn ($q) => $q->active()])->firstOrFail();
 
         return $this->ok(new BrandResource($brand), 'Brand retrieved successfully');
     }

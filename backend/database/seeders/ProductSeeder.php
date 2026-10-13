@@ -58,7 +58,8 @@ class ProductSeeder extends Seeder
                 'mrp' => $row['mrp'],
                 'price' => $row['price'],
                 'tax_rate' => in_array($row['category'], ['batteries', 'engine-oil', 'fluids-lubricants'], true) ? 28 : 18,
-                'vehicle_type' => $row['vehicle_type'],
+                // A "universal" product named for cars (car shampoo, car first-aid kit) is a car product.
+                'vehicle_type' => $row['vehicle_type'] === 'universal' && preg_match('/\bcars?\b/i', $row['name']) ? 'car' : $row['vehicle_type'],
                 'is_universal' => $isUniversal,
                 'position' => $row['position'] ?? null,
                 'material' => $row['material'] ?? null,

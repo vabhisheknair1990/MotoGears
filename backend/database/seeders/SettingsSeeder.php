@@ -13,9 +13,9 @@ class SettingsSeeder extends Seeder
         $groups = [
             'store_name' => 'store', 'store_tagline' => 'store', 'support_phone' => 'store', 'support_email' => 'store', 'store_address' => 'store', 'gstin' => 'store', 'trade_name' => 'store', 'legal_name' => 'store', 'currency' => 'store',
             'free_shipping_threshold' => 'shipping', 'standard_shipping_cost' => 'shipping', 'express_shipping_cost' => 'shipping', 'shipping_tax_rate' => 'shipping',
-            'cod_enabled' => 'payments', 'cod_max_order_value' => 'payments', 'unpaid_order_timeout_minutes' => 'payments', 'max_quantity_per_item' => 'checkout', 'guest_checkout_enabled' => 'checkout',
+            'cod_enabled' => 'payments', 'cod_max_order_value' => 'payments', 'unpaid_order_timeout_minutes' => 'payments', 'max_quantity_per_item' => 'checkout', 'guest_checkout_enabled' => 'checkout', 'sell_car_parts' => 'catalog',
         ];
-        $public = ['store_name', 'store_tagline', 'support_phone', 'support_email', 'store_address', 'trade_name', 'legal_name', 'gstin', 'currency', 'free_shipping_threshold', 'standard_shipping_cost', 'express_shipping_cost', 'cod_enabled', 'guest_checkout_enabled'];
+        $public = ['store_name', 'store_tagline', 'support_phone', 'support_email', 'store_address', 'trade_name', 'legal_name', 'gstin', 'currency', 'free_shipping_threshold', 'standard_shipping_cost', 'express_shipping_cost', 'cod_enabled', 'guest_checkout_enabled', 'sell_car_parts'];
 
         foreach (SettingsService::DEFAULTS as $key => $value) {
             Setting::updateOrCreate(['key' => $key], [

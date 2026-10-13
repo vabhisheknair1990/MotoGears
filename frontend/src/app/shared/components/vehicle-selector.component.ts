@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Manufacturer, SelectedVehicle, VehicleModel, VehicleVariant } from '../../core/models/api.models';
 import { VehicleService } from '../../core/services/vehicle.service';
 import { VehicleStore } from '../../core/state/vehicle.store';
+import { CatalogScopeService } from '../../core/services/catalog-scope.service';
 import { IconComponent } from './icon.component';
 
 /**
@@ -14,7 +15,7 @@ import { IconComponent } from './icon.component';
   imports: [IconComponent],
   template: `
     <div class="vs" [class]="'vs ' + layout()">
-      @if (showTypeToggle()) {
+      @if (showTypeToggle() && scope.sellsCars()) {
         <div class="types" role="tablist" aria-label="Vehicle type">
           <button type="button" role="tab" [attr.aria-selected]="type() === 'car'" [class.on]="type() === 'car'" (click)="setType('car')"><app-icon name="car" [size]="18" /> Car</button>
           <button type="button" role="tab" [attr.aria-selected]="type() === 'motorcycle'" [class.on]="type() === 'motorcycle'" (click)="setType('motorcycle')"><app-icon name="bike" [size]="18" /> Bike</button>
@@ -62,6 +63,8 @@ export class VehicleSelectorComponent implements OnInit {
   private readonly api = inject(VehicleService);
   private readonly store = inject(VehicleStore);
   private readonly destroyRef = inject(DestroyRef);
+  /** No car parts on sale → the selector is for motorcycles only. */
+  protected readonly scope = inject(CatalogScopeService);
 
   readonly layout = input<'hero' | 'stacked' | 'inline'>('hero');
   readonly buttonLabel = input('FIND PARTS');
@@ -85,7 +88,7 @@ export class VehicleSelectorComponent implements OnInit {
 
   ngOnInit(): void {
     const current = this.store.selected();
-    if (current?.vehicleType === 'motorcycle') this.type.set('motorcycle');
+    if (current?.vehicleType === 'motorcycle' || !this.scope.sellsCars()) this.type.set('motorcycle');
     this.loadManufacturers(current ?? undefined);
   }
 

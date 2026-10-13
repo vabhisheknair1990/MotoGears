@@ -15,7 +15,7 @@ import { VehicleSelectorComponent } from '../../../shared/components/vehicle-sel
   imports: [IconComponent, EmptyStateComponent, VehicleSelectorComponent],
   template: `
     <h1 class="h1">My garage</h1>
-    <p class="text-muted">Save your cars and bikes to get personalised compatibility, search results and recommendations.</p>
+    <p class="text-muted">Save your bikes to get personalised compatibility, search results and recommendations.</p>
     <div class="card card-body mb-16">
       <h3>Add a vehicle</h3>
       <app-vehicle-selector layout="stacked" buttonLabel="Save to garage" [persist]="false" (selected)="add($event)" />

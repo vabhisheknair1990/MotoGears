@@ -27,7 +27,8 @@ class VehicleVariant extends Model
 
     public function scopeActive(Builder $q): Builder
     {
-        return $q->where('is_active', true);
+        return $q->where('is_active', true)
+            ->when(! \App\Support\Catalog::sellsCars(), fn ($q) => $q->whereHas('model', fn ($m) => $m->where('vehicle_type', '!=', 'car')));
     }
 
     public function scopeForYear(Builder $q, ?int $year): Builder

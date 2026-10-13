@@ -45,6 +45,8 @@ export class ProductListPage {
   protected readonly facets = signal<Facets | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal(false);
+  /** The category/brand in the URL doesn't exist (or is hidden from the storefront). */
+  protected readonly notFound = signal(false);
   protected readonly category = signal<Category | null>(null);
   protected readonly brand = signal<Brand | null>(null);
   protected readonly query = signal('');
@@ -94,12 +96,12 @@ export class ProductListPage {
   constructor() {
     combineLatest([this.route.paramMap, this.route.queryParamMap, this.route.data, toObservable(this.vehicle.variantId)]).pipe(
       map(([params, query, data]) => this.readState(params, query, (data['mode'] as Mode) ?? 'shop')),
-      tap(() => { this.loading.set(true); this.error.set(false); }),
+      tap(() => { this.loading.set(true); this.error.set(false); this.notFound.set(false); }),
       switchMap((filters) => {
         const header$ = this.mode() === 'category' && this.slug()
-          ? this.categories.getCategory(this.slug()!).pipe(tap((c) => this.category.set(c)), catchError(() => { this.category.set(null); return of(null); }))
+          ? this.categories.getCategory(this.slug()!).pipe(tap((c) => this.category.set(c)), catchError(() => { this.category.set(null); this.notFound.set(true); return of(null); }))
           : this.mode() === 'brand' && this.slug()
-            ? this.brands.getBrand(this.slug()!).pipe(tap((b) => this.brand.set(b)), catchError(() => { this.brand.set(null); return of(null); }))
+            ? this.brands.getBrand(this.slug()!).pipe(tap((b) => this.brand.set(b)), catchError(() => { this.brand.set(null); this.notFound.set(true); return of(null); }))
             : of(null);
         const list$ = this.mode() === 'search'
           ? this.products.search({ ...filters, q: this.query() })

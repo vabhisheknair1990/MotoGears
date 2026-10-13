@@ -448,6 +448,8 @@ export interface StoreSettings {
   unpaid_order_timeout_minutes?: number;
   /** Razorpay is running on test keys — no real money is charged. */
   payments_test_mode?: boolean;
+  /** Admin → Settings: when false the store sells no car parts (API hides them; UI hides car wording). */
+  sell_car_parts?: boolean;
   /** Registered business details (GST certificate). */
   trade_name?: string; legal_name?: string; gstin?: string;
   payment_methods?: { code: PaymentCode; label: string; description: string }[];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\Catalog;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BannerResource;
 use App\Http\Resources\BlogPostResource;
@@ -57,7 +58,7 @@ class HomepageController extends Controller
             'hero_banners' => BannerResource::collection(Banner::live()->where('placement', 'hero')->get())->resolve($request),
             'promo_banners' => BannerResource::collection(Banner::live()->whereIn('placement', ['promo', 'offer'])->get())->resolve($request),
             'featured_categories' => CategoryResource::collection(
-                Category::active()->where('is_featured', true)->withCount(['products' => fn ($q) => $q->where('is_active', true)])->orderBy('sort_order')->limit(12)->get()
+                Category::active()->where('is_featured', true)->withCount(['products' => fn ($q) => $q->active()])->orderBy('sort_order')->limit(12)->get()
             )->resolve($request),
             'featured_products' => $cards(Product::active()->where('is_featured', true)->orderByDesc('sold_count')),
             'best_sellers' => $cards(Product::active()->orderByDesc('sold_count')),
@@ -65,7 +66,10 @@ class HomepageController extends Controller
             'deals' => $cards(Product::active()->whereRaw('mrp > 0 AND (mrp - price) * 100 >= 20 * mrp')->orderByRaw('(mrp - price) * 1.0 / mrp DESC')),
             'brands' => BrandResource::collection(Brand::active()->orderByDesc('is_featured')->orderBy('sort_order')->limit(16)->get())->resolve($request),
             'offers' => CouponResource::collection(Coupon::currentlyValid()->where(fn ($w) => $w->whereNull('usage_limit')->orWhereColumn('used_count', '<', 'usage_limit'))->orderBy('min_order_amount')->limit(4)->get())->resolve($request),
-            'testimonials' => Testimonial::where('is_active', true)->orderBy('sort_order')->limit(6)->get(['id', 'name', 'location', 'vehicle', 'rating', 'content']),
+            'testimonials' => Testimonial::where('is_active', true)->orderBy('sort_order')->limit(20)->get(['id', 'name', 'location', 'vehicle', 'rating', 'content'])
+                // No car stories while the store doesn't sell car parts.
+                ->reject(fn ($t) => ! Catalog::sellsCars() && Catalog::mentionsCar($t->vehicle.' '.$t->content))
+                ->take(6)->values(),
             'blog_posts' => BlogPostResource::collection(BlogPost::published()->with('category')->latest('published_at')->limit(3)->get())->resolve($request),
             'stats' => [
                 'products' => Product::active()->count(),

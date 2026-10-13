@@ -23,7 +23,7 @@
     <div class="search hide-mobile"><app-search-bar /></div>
 
     <button type="button" class="vehicle-btn" (click)="ui.vehicleModalOpen.set(true)" [attr.aria-label]="vehicle.label() ? 'Change vehicle: ' + vehicle.fullLabel() : 'Select your vehicle'">
-      <app-icon [name]="vehicle.selected()?.vehicleType === 'motorcycle' ? 'bike' : 'car'" [size]="22" />
+      <app-icon [name]="vehicle.selected()?.vehicleType === 'car' ? 'car' : 'bike'" [size]="22" />
       <span class="vb-text">
         <small>{{ vehicle.label() ? 'My vehicle' : 'Shop by vehicle' }}</small>
         <strong class="truncate">{{ vehicle.label() ?? 'Select vehicle' }}</strong>
@@ -43,7 +43,7 @@
               @if (auth.isStaff()) { <a routerLink="/admin" role="menuitem"><app-icon name="gauge" [size]="16" /> Admin panel</a> }
               <a routerLink="/account" role="menuitem"><app-icon name="user" [size]="16" /> My account</a>
               <a routerLink="/account/orders" role="menuitem"><app-icon name="package" [size]="16" /> My orders</a>
-              <a routerLink="/account/vehicles" role="menuitem"><app-icon name="car" [size]="16" /> My garage</a>
+              <a routerLink="/account/vehicles" role="menuitem"><app-icon name="bike" [size]="16" /> My garage</a>
               <button type="button" role="menuitem" (click)="logout()"><app-icon name="logout" [size]="16" /> Log out</button>
             </div>
           }
@@ -68,6 +68,7 @@
       <ul class="list-reset navlist">
         <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a></li>
         <li><a routerLink="/shop" routerLinkActive="active">Shop</a></li>
+        @if (carParts().length) {
         <li class="has-mega" (mouseenter)="openMenu.set('car')" (mouseleave)="openMenu.set(null)">
           <a routerLink="/category/car-parts" routerLinkActive="active">Car Parts <app-icon name="chevron-down" [size]="14" /></a>
           @if (openMenu() === 'car' && carParts().length) {
@@ -76,6 +77,7 @@
             </div></div>
           }
         </li>
+        }
         <li class="has-mega" (mouseenter)="openMenu.set('bike')" (mouseleave)="openMenu.set(null)">
           <a routerLink="/category/motorcycle-parts" routerLinkActive="active">Bike Parts <app-icon name="chevron-down" [size]="14" /></a>
           @if (openMenu() === 'bike' && bikeParts().length) {
@@ -110,7 +112,7 @@
     </div>
     <a routerLink="/">Home</a>
     <a routerLink="/shop">Shop all</a>
-    <details open><summary>Car Parts</summary>@for (c of carParts(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details>
+    @if (carParts().length) { <details open><summary>Car Parts</summary>@for (c of carParts(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details> }
     <details><summary>Bike Parts</summary>@for (c of bikeParts(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details>
     <details><summary>Accessories &amp; Oils</summary>@for (c of accessories(); track c.id) { <a [routerLink]="['/category', c.slug]">{{ c.name }}</a> }</details>
     <a routerLink="/brands">Brands</a>

@@ -16,9 +16,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * In-page UPI: show a QR code (UPI intent) or send a collect request to a UPI ID, then poll
- * the provider until the money arrives. Whoever confirms first — status poll or webhook —
- * marks the order paid; OrderService makes that idempotent and refunds late duplicates.
+ * In-page UPI: show a QR code (or, with providers that allow it, send a collect request to a
+ * UPI ID), then poll the provider until the money arrives. Whoever confirms first — status
+ * poll or webhook — marks the order paid; OrderService makes that idempotent and refunds late
+ * duplicates.
  *
  * The browser never decides the outcome: "paid" only ever comes from the provider.
  */
@@ -43,20 +44,26 @@ class UpiPaymentService
 
         if (! $reusable) {
             $provider = $this->providers->forGateway($payment->gateway);
-            $started = $this->call(fn () => $provider->intent($order, $payment, $client));
-            $meta = $this->freshMeta($meta) + [
+            $refs = array_values(array_filter([...(array) ($meta['upi_refs'] ?? []), $meta['upi_ref'] ?? null]));
+            $started = $this->call(fn () => $provider->intent($order, $payment, $client, $refs));
+            $expires = isset($started['expires_at']) ? Carbon::createFromTimestamp($started['expires_at']) : now()->addMinutes($this->ttl('qr'));
+            $meta = array_merge($this->freshMeta($meta), [
                 'upi_flow' => 'intent',
                 'upi_ref' => $started['reference'],
+                // Every code shown for this payment: a customer may pay an older one just before it closes.
+                'upi_refs' => array_slice(array_values(array_unique(array_filter([...$refs, $started['reference']]))), -10),
                 'upi_link' => $started['link'],
+                'upi_open_app' => (bool) ($started['open_app'] ?? true),
                 'upi_started_at' => now()->toIso8601String(),
-                'upi_expires_at' => now()->addMinutes($this->ttl('qr'))->toIso8601String(),
-            ];
+                'upi_expires_at' => $expires->toIso8601String(),
+            ]);
             $payment->update(['meta' => $meta]);
         }
 
         return $this->session($order, $payment->fresh(), 'pending') + [
             'qr' => UpiQr::dataUri($meta['upi_link']),
-            'link' => $meta['upi_link'],
+            // Only links a UPI app may open directly are offered as an "Open UPI app" button.
+            'link' => ($meta['upi_open_app'] ?? true) ? $meta['upi_link'] : null,
         ];
     }
 
@@ -66,6 +73,9 @@ class UpiPaymentService
         $vpa = strtolower(trim($vpa));
         $payment = $this->attempt($order, $by);
         $provider = $this->providers->forGateway($payment->gateway);
+        if (! $provider->supportsCollect()) {
+            throw new BusinessException('Pay with your UPI ID or UPI app in the secure Razorpay window.', 422, [], ['fallback' => $this->fallback()]);
+        }
 
         $check = $provider->validateVpa($vpa);
         if ($check && ! $check['valid']) {
@@ -147,6 +157,7 @@ class UpiPaymentService
         return [
             'available' => (bool) $provider,
             'demo' => (bool) $provider?->isDemo(),
+            'collect' => (bool) $provider?->supportsCollect(),
             'amount' => (float) $order->grand_total,
             'payee' => (string) $this->settings->get('store_name'),
             'qr_ttl_seconds' => $this->ttl('qr') * 60,
@@ -210,7 +221,7 @@ class UpiPaymentService
     /** Drop the previous QR/collect details when switching or restarting. */
     private function freshMeta(array $meta): array
     {
-        return array_diff_key($meta, array_flip(['upi_flow', 'upi_ref', 'upi_link', 'upi_started_at', 'upi_expires_at', 'vpa', 'payer_name', 'demo_outcome', 'demo_decline']));
+        return array_diff_key($meta, array_flip(['upi_flow', 'upi_ref', 'upi_link', 'upi_open_app', 'upi_started_at', 'upi_expires_at', 'vpa', 'payer_name', 'demo_outcome', 'demo_decline']));
     }
 
     private function ttl(string $kind): int
@@ -236,6 +247,8 @@ class UpiPaymentService
             'amount' => (float) $order->grand_total,
             'payee' => (string) $this->settings->get('store_name'),
             'demo' => $payment ? $this->providers->forGateway($payment->gateway)->isDemo() : (bool) $this->providers->current()?->isDemo(),
+            // false: no UPI ID box on our page — the "UPI ID / app" option opens Razorpay's window.
+            'collect' => $payment ? $this->providers->forGateway($payment->gateway)->supportsCollect() : (bool) $this->providers->current()?->supportsCollect(),
             'transaction_id' => $status === 'paid' ? $payment?->transaction_id : null,
         ];
     }

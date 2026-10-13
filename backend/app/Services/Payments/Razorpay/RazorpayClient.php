@@ -92,19 +92,52 @@ class RazorpayClient
     }
 
     /**
-     * POST /payments/create/upi — S2S UPI payment against a Razorpay order.
-     * flow "intent" returns a upi://pay link (shown as a QR code); flow "collect" sends a
-     * request to the customer's UPI ID. Needs UPI S2S enabled on the Razorpay account.
+     * POST /payments/qr_codes — a single-use UPI QR code for one exact amount, closed
+     * automatically at $closeBy (Razorpay allows 2 minutes to 2 hours from now).
      */
-    public function createUpiPayment(array $payload): array
+    public function createQrCode(int $amountPaise, int $closeBy, string $description, array $notes = []): array
     {
-        return $this->send('post', 'payments/create/upi', $payload);
+        return $this->send('post', 'payments/qr_codes', [
+            'type' => 'upi_qr',
+            'name' => substr($description, 0, 40),
+            'usage' => 'single_use',
+            'fixed_amount' => true,
+            'payment_amount' => $amountPaise,
+            'description' => substr($description, 0, 100),
+            'close_by' => $closeBy,
+            'notes' => array_slice(array_map(fn ($v) => substr((string) $v, 0, 256), $notes), 0, 15, true),
+        ]);
     }
 
-    /** POST /payments/validate/vpa — checks a UPI ID exists and returns the holder's name. */
-    public function validateVpa(string $vpa): array
+    /** GET /payments/qr_codes/{id}/payments */
+    public function fetchQrPayments(string $qrId): array
     {
-        return $this->send('post', 'payments/validate/vpa', ['vpa' => $vpa]);
+        return $this->send('get', 'payments/qr_codes/'.rawurlencode($qrId).'/payments')['items'] ?? [];
+    }
+
+    /** POST /payments/qr_codes/{id}/close — so an old code can't be paid any more. */
+    public function closeQrCode(string $qrId): array
+    {
+        return $this->send('post', 'payments/qr_codes/'.rawurlencode($qrId).'/close');
+    }
+
+    /** The PNG behind a QR code's image_url (a short link that redirects to Razorpay). */
+    public function downloadQrImage(string $url): string
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if (! in_array($host, ['rzp.io', 'api.razorpay.com'], true) && ! str_ends_with($host, '.razorpay.com')) {
+            throw new RazorpayException('Unexpected QR image host.');
+        }
+        try {
+            $response = Http::timeout(10)->withOptions(['allow_redirects' => ['max' => 3, 'protocols' => ['https']]])->get($url);
+        } catch (ConnectionException $e) {
+            throw new RazorpayException('Could not download the QR code.', 0, $e);
+        }
+        if (! $response->successful() || ! str_starts_with((string) $response->header('Content-Type'), 'image/')) {
+            throw new RazorpayException('Could not download the QR code.', $response->status());
+        }
+
+        return $response->body();
     }
 
     /** POST /payments/{id}/capture — only needed when auto-capture is off in the Dashboard. */

@@ -192,102 +192,226 @@ class UpiPaymentTest extends TestCase
             ->assertJsonPath('data.status', 'paid')->assertJsonPath('data.order.is_guest', true);
     }
 
-    // ── Razorpay (real provider, HTTP faked) ──────────────────────
-    public function test_razorpay_qr_is_confirmed_by_polling(): void
+    // ── Razorpay UPI QR codes (real provider, HTTP faked) ─────────
+    /** A PNG QR code holding $link, like the poster Razorpay serves behind image_url. */
+    private static function qrPng(string $link): string
     {
-        $this->useRazorpay();
-        $sent = [];
-        Http::fake(function (HttpRequest $req) use (&$sent) {
-            $path = parse_url($req->url(), PHP_URL_PATH);
-            $sent[] = $req->method().' '.$path;
-            $paise = (int) round(Payment::latest('id')->first()->amount * 100);
+        return (new \BaconQrCode\Writer(new \BaconQrCode\Renderer\GDLibRenderer(400)))->writeString($link);
+    }
+
+    private static function upiLink(float $rupees, string $qrId): string
+    {
+        return 'upi://pay?ver=01&mode=22&pa=motogears.rzp@icici&pn=MOTOGEARS&tr=RZP'.$qrId.'qrv2&cu=INR&mc=5013&qrMedium=04&am='.number_format($rupees, 2, '.', '');
+    }
+
+    /**
+     * Fakes Razorpay's QR Codes API. Each POST creates qr_1, qr_2…; $paid maps a QR id to the
+     * Razorpay payment made on it. Returns the list of requests sent ("METHOD path").
+     */
+    private function fakeQrApi(array &$paid = [], array &$sent = [], ?callable $imageAmount = null): void
+    {
+        $count = 0;
+        Http::fake(function (HttpRequest $req) use (&$paid, &$sent, &$count, $imageAmount) {
+            $path = (string) parse_url($req->url(), PHP_URL_PATH);
+            $host = (string) parse_url($req->url(), PHP_URL_HOST);
+            $sent[] = $req->method().' '.($host === 'rzp.io' ? 'rzp.io' : '').$path;
+            $paise = (int) round(Payment::where('method', 'upi')->latest('id')->first()->amount * 100);
+
+            if ($host === 'rzp.io') {
+                $id = substr($path, 3);
+
+                return Http::response(self::qrPng(self::upiLink(($imageAmount ? $imageAmount($paise) : $paise) / 100, $id)), 200, ['Content-Type' => 'image/png']);
+            }
 
             return match (true) {
-                $path === '/v1/orders' => Http::response(['id' => 'order_U1', 'amount' => $req['amount'], 'status' => 'created']),
-                $path === '/v1/payments/create/upi' => Http::response(['razorpay_payment_id' => 'pay_Q1', 'link' => 'upi://pay?pa=rzp@icici&am=1&tr=x']),
-                $path === '/v1/orders/order_U1/payments' => Http::response(['items' => [['id' => 'pay_Q1', 'status' => 'captured', 'method' => 'upi', 'vpa' => 'asha@okicici', 'amount' => $paise, 'order_id' => 'order_U1']]]),
-                str_ends_with($path, '/refund') => Http::response(['id' => 'rfnd_1', 'status' => 'processed']),
-                default => Http::response(['error' => ['description' => 'unexpected']], 500),
+                $req->method() === 'POST' && $path === '/v1/payments/qr_codes' => Http::response([
+                    'id' => 'qr_'.(++$count), 'entity' => 'qr_code', 'type' => 'upi_qr', 'usage' => 'single_use', 'status' => 'active',
+                    'payment_amount' => $req['payment_amount'], 'close_by' => $req['close_by'], 'image_url' => 'https://rzp.io/i/qr_'.$count,
+                ]),
+                (bool) preg_match('#^/v1/payments/qr_codes/(qr_\d+)/payments$#', $path, $m) => Http::response(['items' => isset($paid[$m[1]])
+                    ? [['id' => $paid[$m[1]], 'status' => 'captured', 'method' => 'upi', 'vpa' => 'asha@okicici', 'amount' => $paise, 'order_id' => null]]
+                    : []]),
+                (bool) preg_match('#^/v1/payments/qr_codes/qr_\d+/close$#', $path) => Http::response(['status' => 'closed']),
+                $path === '/v1/orders' => Http::response(['id' => 'order_R1', 'amount' => $req['amount'], 'status' => 'created']),
+                str_ends_with($path, '/refund') => Http::response(['id' => 'rfnd_'.count($sent), 'status' => 'processed']),
+                default => Http::response(['error' => ['description' => 'unexpected '.$path]], 500),
             };
         });
+    }
+
+    private function qrWebhook(string $qrId, string $payId, int $paise, ?int $paymentId = null): \Illuminate\Testing\TestResponse
+    {
+        $body = json_encode(['event' => 'qr_code.credited', 'contains' => ['payment', 'qr_code'], 'payload' => [
+            'payment' => ['entity' => ['id' => $payId, 'amount' => $paise, 'status' => 'captured', 'method' => 'upi', 'vpa' => 'x@ybl', 'order_id' => null]],
+            'qr_code' => ['entity' => ['id' => $qrId, 'status' => 'closed', 'notes' => $paymentId ? ['payment_id' => $paymentId] : []]],
+        ]]);
+
+        return $this->call('POST', $this->api('webhooks/razorpay'), [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_RAZORPAY_SIGNATURE' => hash_hmac('sha256', $body, 'whsec')], $body);
+    }
+
+    public function test_razorpay_qr_code_is_shown_and_confirmed_by_polling(): void
+    {
+        $this->useRazorpay();
+        $paid = [];
+        $sent = [];
+        $this->fakeQrApi($paid, $sent);
 
         [$order, $res] = $this->placeUpiOrder();
-        $res->assertJsonPath('data.upi.demo', false);
-        $this->assertSame('order_U1', Payment::latest('id')->first()->gateway_order_id);
+        $res->assertJsonPath('data.upi.demo', false)->assertJsonPath('data.upi.collect', false);
+        $payment = Payment::latest('id')->first();
+        $this->assertSame('razorpay', $payment->gateway);
+        $this->assertSame([], array_filter($sent, fn ($r) => str_contains($r, '/v1/orders')), 'no Razorpay order is needed for a QR code');
 
-        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk()
-            ->assertJsonPath('data.link', 'upi://pay?pa=rzp@icici&am=1&tr=x')->assertJsonPath('data.demo', false);
-        Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/create/upi')
-            && $r['upi'] === ['flow' => 'intent'] && $r['order_id'] === 'order_U1' && $r['method'] === 'upi' && $r['contact'] && $r['email']);
+        $qr = $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk()
+            ->assertJsonPath('data.status', 'pending')->assertJsonPath('data.flow', 'intent')
+            ->assertJsonPath('data.demo', false)->assertJsonPath('data.collect', false)
+            // QR-code links aren't opened as app intents; phones get Razorpay's UPI app buttons.
+            ->assertJsonPath('data.link', null);
+        $this->assertStringStartsWith('data:image/svg+xml;base64,', $qr->json('data.qr'));
+        $paise = (int) round($payment->amount * 100);
+        Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/qr_codes') && $r['type'] === 'upi_qr'
+            && $r['usage'] === 'single_use' && $r['fixed_amount'] === true && $r['payment_amount'] === $paise
+            && $r['close_by'] >= now()->addMinutes(9)->getTimestamp() && $r['notes']['payment_id'] === (string) $payment->id);
+        $this->assertSame(self::upiLink($paise / 100, 'qr_1'), $payment->fresh()->meta['upi_link']);
+        $this->assertSame(['qr_1'], $payment->fresh()->meta['upi_refs']);
 
+        // Same code while it is valid; not paid yet.
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $this->assertCount(1, array_filter($sent, fn ($r) => $r === 'POST /v1/payments/qr_codes'));
+        $this->getJson($this->api("orders/{$order['id']}/upi/status"))->assertJsonPath('data.status', 'pending');
+
+        $paid['qr_1'] = 'pay_Q1';
+        $this->travel(3)->seconds();
         $this->getJson($this->api("orders/{$order['id']}/upi/status"))->assertJsonPath('data.status', 'paid')
             ->assertJsonPath('data.transaction_id', 'pay_Q1');
-        $this->assertSame('asha@okicici', Payment::latest('id')->first()->meta['vpa']);
-        $this->assertContains('GET /v1/orders/order_U1/payments', $sent);
+        $this->assertSame('confirmed', Order::find($order['id'])->status->value);
+        $this->assertSame('asha@okicici', $payment->fresh()->meta['vpa']);
+        $this->assertSame('qr_1', $payment->fresh()->meta['qr_code_id']);
 
         // Cancelling the paid order refunds through Razorpay.
         $this->postJson($this->api("orders/{$order['id']}/cancel"))->assertOk()->assertJsonPath('data.payment_status', 'refunded');
         Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/pay_Q1/refund'));
     }
 
-    public function test_razorpay_collect_request_and_decline(): void
+    public function test_a_new_qr_code_closes_the_old_one_but_a_late_payment_on_it_still_counts(): void
     {
         $this->useRazorpay();
-        Http::fake(function (HttpRequest $req) {
-            $path = parse_url($req->url(), PHP_URL_PATH);
-
-            return match (true) {
-                $path === '/v1/orders' => Http::response(['id' => 'order_C1', 'status' => 'created']),
-                $path === '/v1/payments/validate/vpa' => Http::response(['vpa' => $req['vpa'], 'success' => true, 'customer_name' => 'Asha Menon']),
-                $path === '/v1/payments/create/upi' => Http::response(['razorpay_payment_id' => 'pay_C1']),
-                $path === '/v1/orders/order_C1/payments' => Http::response(['items' => [['id' => 'pay_C1', 'status' => 'failed', 'error_description' => 'Payment was declined by the customer', 'amount' => 1, 'order_id' => 'order_C1']]]),
-                default => Http::response([], 500),
-            };
-        });
-
+        $paid = [];
+        $sent = [];
+        $this->fakeQrApi($paid, $sent);
         [$order] = $this->placeUpiOrder();
-        $this->postJson($this->api("orders/{$order['id']}/upi/collect"), ['vpa' => 'asha@okhdfcbank'])->assertOk()
-            ->assertJsonPath('data.payer_name', 'Asha Menon')->assertJsonPath('data.vpa', 'as**@okhdfcbank');
-        Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/create/upi')
-            && $r['upi'] === ['flow' => 'collect', 'vpa' => 'asha@okhdfcbank', 'expiry_time' => 5]);
 
-        $this->getJson($this->api("orders/{$order['id']}/upi/status"))
-            ->assertJsonPath('data.status', 'failed')->assertJsonPath('data.message', 'Payment was declined by the customer');
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $this->travel(11)->minutes();
+        $this->getJson($this->api("orders/{$order['id']}/upi/status"))->assertJsonPath('data.status', 'expired');
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $this->assertContains('POST /v1/payments/qr_codes/qr_1/close', $sent);
+        $this->assertSame(['qr_1', 'qr_2'], Payment::latest('id')->first()->meta['upi_refs']);
+
+        // The customer had already scanned the first code.
+        $paid['qr_1'] = 'pay_OLD';
+        $this->travel(3)->seconds();
+        $this->getJson($this->api("orders/{$order['id']}/upi/status"))->assertJsonPath('data.status', 'paid')->assertJsonPath('data.transaction_id', 'pay_OLD');
     }
 
-    public function test_razorpay_webhook_confirms_a_upi_payment_when_the_page_is_closed(): void
+    public function test_a_qr_code_for_the_wrong_amount_is_never_shown(): void
     {
         $this->useRazorpay();
-        Http::fake(['*' => fn (HttpRequest $req) => Http::response(['id' => 'order_W1', 'razorpay_payment_id' => 'pay_W1', 'link' => 'upi://pay?pa=a@b'])]);
+        $paid = [];
+        $sent = [];
+        $this->fakeQrApi($paid, $sent, fn (int $paise) => $paise + 100);
+        [$order] = $this->placeUpiOrder();
+
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertStatus(503)->assertJsonPath('fallback', 'razorpay');
+        $this->assertContains('POST /v1/payments/qr_codes/qr_1/close', $sent);
+    }
+
+    public function test_razorpay_webhook_confirms_a_qr_payment_when_the_page_is_closed(): void
+    {
+        $this->useRazorpay();
+        $paid = [];
+        $this->fakeQrApi($paid);
         [$order] = $this->placeUpiOrder();
         $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $payment = Payment::latest('id')->first();
+        $paise = (int) round($payment->amount * 100);
 
-        $paise = (int) round(Order::find($order['id'])->grand_total * 100);
-        $body = json_encode(['event' => 'payment.captured', 'payload' => ['payment' => ['entity' => [
-            'id' => 'pay_W1', 'order_id' => 'order_W1', 'amount' => $paise, 'status' => 'captured', 'method' => 'upi', 'vpa' => 'x@ybl',
-        ]]]]);
-        $this->call('POST', $this->api('webhooks/razorpay'), [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_RAZORPAY_SIGNATURE' => hash_hmac('sha256', $body, 'whsec')], $body)
-            ->assertOk()->assertJsonPath('data.result', 'paid');
+        $this->qrWebhook('qr_9', 'pay_X', $paise, $payment->id)->assertOk()->assertJsonPath('data.result', 'unknown_order');
+        $this->qrWebhook('qr_1', 'pay_X', $paise - 1, $payment->id)->assertOk()->assertJsonPath('data.result', 'amount_mismatch');
+        // Notes missing: found by the QR code id we recorded.
+        $this->qrWebhook('qr_1', 'pay_W1', $paise)->assertOk()->assertJsonPath('data.result', 'paid');
 
         $this->getJson($this->api("orders/{$order['id']}/upi/status"))->assertJsonPath('data.status', 'paid');
         $this->assertSame('confirmed', Order::find($order['id'])->status->value);
+        $this->assertSame('pay_W1', $payment->fresh()->transaction_id);
     }
 
-    public function test_razorpay_without_upi_s2s_offers_the_razorpay_window_instead(): void
+    public function test_opening_the_order_picks_up_a_qr_payment_without_the_webhook(): void
     {
         $this->useRazorpay();
-        Http::fake(function (HttpRequest $req) {
-            return str_ends_with($req->url(), '/payments/create/upi')
-                ? Http::response(['error' => ['code' => 'BAD_REQUEST_ERROR', 'description' => 'S2S is not enabled for the merchant']], 400)
-                : Http::response(['id' => 'order_F1', 'status' => 'created']);
-        });
+        $paid = [];
+        $this->fakeQrApi($paid);
+        [$order] = $this->placeUpiOrder();
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+
+        $paid['qr_1'] = 'pay_R1';
+        $this->getJson($this->api("orders/{$order['id']}"))->assertOk();
+        $this->assertSame('confirmed', Order::find($order['id'])->status->value);
+    }
+
+    public function test_paying_two_qr_codes_refunds_the_second_payment(): void
+    {
+        $this->useRazorpay();
+        $paid = [];
+        $sent = [];
+        $this->fakeQrApi($paid, $sent);
+        [$order] = $this->placeUpiOrder();
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $this->travel(11)->minutes();
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $payment = Payment::latest('id')->first();
+        $paise = (int) round($payment->amount * 100);
+
+        $this->qrWebhook('qr_2', 'pay_A', $paise, $payment->id)->assertJsonPath('data.result', 'paid');
+        $this->qrWebhook('qr_1', 'pay_B', $paise, $payment->id)->assertJsonPath('data.result', 'paid');
+
+        Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/pay_B/refund'));
+        Http::assertNotSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/pay_A/refund'));
+        $this->assertSame('paid', Order::find($order['id'])->payment_status->value);
+        $this->assertSame('refunded', Payment::where('transaction_id', 'pay_B')->first()->status->value);
+    }
+
+    public function test_without_upi_qr_codes_razorpay_window_takes_over(): void
+    {
+        $this->useRazorpay();
+        Http::fake(['*/payments/qr_codes' => Http::response(['error' => ['code' => 'BAD_REQUEST_ERROR', 'description' => 'The requested URL was not found on the server.']], 400)]);
         [$order, , $p] = $this->placeUpiOrder();
 
         $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertStatus(503)
-            ->assertJsonPath('fallback', 'razorpay')->assertJsonPath('message', 'UPI payments are temporarily unavailable.');
+            ->assertJsonPath('fallback', 'razorpay')->assertJsonPath('message', 'UPI QR codes are temporarily unavailable.');
         // Nothing was lost: the order is still pending with its stock reserved.
         $this->assertSame('pending', Order::find($order['id'])->status->value);
         $this->assertSame(1, Inventory::where('product_id', $p->id)->value('reserved'));
+        // …and new checkouts stop offering the in-page UPI option for a while (Razorpay still takes UPI).
+        $this->assertNotContains('upi', collect($this->getJson($this->api('settings'))->json('data.payment_methods'))->pluck('code'));
+    }
+
+    public function test_upi_id_payments_go_to_the_razorpay_window(): void
+    {
+        $this->useRazorpay();
+        $paid = [];
+        $sent = [];
+        $this->fakeQrApi($paid, $sent);
+        [$order] = $this->placeUpiOrder();
+        $this->postJson($this->api("orders/{$order['id']}/upi/qr"))->assertOk();
+        $this->postJson($this->api("orders/{$order['id']}/upi/collect"), ['vpa' => 'asha@okaxis'])
+            ->assertStatus(422)->assertJsonPath('fallback', 'razorpay');
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'vpa') || str_contains($r->url(), 'create/upi'));
+
+        // Switching to the Razorpay window closes the QR code shown on our page.
+        $this->postJson($this->api("orders/{$order['id']}/pay"), ['payment_method' => 'razorpay'])->assertOk()
+            ->assertJsonPath('data.razorpay.order_id', 'order_R1');
+        Http::assertSent(fn (HttpRequest $r) => str_ends_with($r->url(), '/payments/qr_codes/qr_1/close'));
     }
 
     public function test_upi_is_hidden_until_razorpay_enables_it(): void
@@ -306,22 +430,5 @@ class UpiPaymentTest extends TestCase
         $options = collect($this->getJson($this->api('settings'))->json('data.payment_methods'));
         $this->assertSame('upi', $options->pluck('code')->first());
         $this->assertSame('UPI, credit/debit cards, net banking and wallets — secure checkout by Razorpay.', $options->firstWhere('code', 'razorpay')['description']);
-    }
-
-    public function test_razorpay_feature_errors_are_not_reported_as_a_wrong_upi_id(): void
-    {
-        $this->useRazorpay();
-        Http::fake(function (HttpRequest $req) {
-            $path = parse_url($req->url(), PHP_URL_PATH);
-
-            return match (true) {
-                $path === '/v1/orders' => Http::response(['id' => 'order_N1', 'status' => 'created']),
-                str_contains($path, '/payments/') => Http::response(['error' => ['code' => 'BAD_REQUEST_ERROR', 'description' => 'The requested URL was not found on the server.']], 400),
-                default => Http::response([], 500),
-            };
-        });
-        [$order] = $this->placeUpiOrder();
-        $this->postJson($this->api("orders/{$order['id']}/upi/collect"), ['vpa' => 'asha@okaxis'])
-            ->assertStatus(503)->assertJsonPath('message', 'UPI payments are temporarily unavailable.')->assertJsonPath('fallback', 'razorpay');
     }
 }

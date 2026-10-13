@@ -4,30 +4,38 @@ namespace App\Services\Payments\Upi;
 
 use App\Models\Order;
 use App\Models\Payment;
+use App\Services\Payments\PaymentResult;
 use App\Services\Payments\Razorpay\RazorpayClient;
 use App\Services\Payments\Razorpay\RazorpayException;
 use App\Services\Payments\RazorpayGateway;
-use App\Services\Payments\PaymentResult;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * UPI through Razorpay's S2S API. Each attempt is a Razorpay order; QR codes (intent) and
- * collect requests are payments against it, so the existing Razorpay webhook
- * (payment.captured / payment.failed, matched by order_id) confirms them too.
+ * UPI through Razorpay's UPI QR Codes API. Each QR code is single-use, for the exact order
+ * total, and closes itself when it expires. We read the upi://pay link out of Razorpay's QR
+ * image and draw it on our own page; the payment is confirmed by polling the QR code's
+ * payments and by the qr_code.credited webhook.
+ *
+ * Typing a UPI ID (collect) isn't offered here: NPCI retired UPI Collect for web checkouts,
+ * so customers who prefer their UPI ID or an app button pay in Razorpay's window instead.
  */
 class RazorpayUpiProvider implements UpiProvider
 {
-    public function __construct(private RazorpayClient $client, private RazorpayGateway $gateway) {}
+    /** Set when Razorpay refuses QR codes (feature not activated): stop offering them for a while. */
+    private const OFF_FOR_SECONDS = 3600;
+
+    public function __construct(private RazorpayClient $client, private RazorpayGateway $gateway, private UpiQrReader $reader) {}
 
     public function name(): string
     {
         return 'razorpay';
     }
 
-    /** Only when Razorpay has UPI switched on for the account (it is off until KYC/activation). */
+    /** Only when Razorpay has UPI switched on and hasn't refused QR codes recently. */
     public function isAvailable(): bool
     {
-        return $this->client->isConfigured() && $this->client->upiEnabled();
+        return $this->client->isConfigured() && $this->client->upiEnabled() && ! Cache::has($this->offKey());
     }
 
     public function isDemo(): bool
@@ -35,94 +43,100 @@ class RazorpayUpiProvider implements UpiProvider
         return false;
     }
 
-    public function openOrder(Order $order, Payment $payment): string
+    public function supportsCollect(): bool
     {
-        try {
-            $rzp = $this->client->createOrder(
-                RazorpayGateway::toPaise((float) $payment->amount),
-                $order->order_number.'-'.$payment->id,
-                ['order_number' => $order->order_number, 'order_id' => $order->id, 'payment_id' => $payment->id, 'flow' => 'upi'],
-                $payment->currency,
-            );
-        } catch (RazorpayException $e) {
-            throw new UpiException('Could not start the UPI payment. Please try again in a moment.', 0, $e);
-        }
-
-        return (string) ($rzp['id'] ?? '');
+        return false;
     }
 
-    public function intent(Order $order, Payment $payment, array $client): array
+    /** The QR code itself is created when the customer opens the payment page. */
+    public function openOrder(Order $order, Payment $payment): string
     {
-        $res = $this->create($order, $payment, ['flow' => 'intent'], $client);
-        $link = $res['link'] ?? collect($res['next'] ?? [])->firstWhere('action', 'intent')['url'] ?? null;
-        if (! is_string($link) || ! str_starts_with($link, 'upi://')) {
-            Log::warning('Razorpay UPI intent returned no link', ['order' => $order->order_number, 'keys' => array_keys($res)]);
+        return 'upi_'.$payment->id;
+    }
+
+    public function intent(Order $order, Payment $payment, array $client, array $previous = []): array
+    {
+        $this->closeAll($previous);
+
+        $amount = RazorpayGateway::toPaise((float) $payment->amount);
+        $minutes = max(2, min(120, (int) config('payments.upi.qr_ttl_minutes', 10)));
+        try {
+            $qr = $this->client->createQrCode($amount, now()->addMinutes($minutes)->getTimestamp(), 'Order '.$order->order_number, [
+                'order_number' => $order->order_number, 'order_id' => $order->id, 'payment_id' => $payment->id,
+            ]);
+        } catch (RazorpayException $e) {
+            if (self::isFeatureOff($e)) {
+                Cache::put($this->offKey(), true, self::OFF_FOR_SECONDS);
+                Log::warning('Razorpay UPI QR codes are not enabled for this account', ['error' => $e->getMessage()]);
+            }
+            throw new UpiException('UPI QR codes are temporarily unavailable.', $e->getCode(), $e);
+        }
+
+        $id = (string) ($qr['id'] ?? '');
+        $link = null;
+        try {
+            $link = $this->reader->read($this->client->downloadQrImage((string) ($qr['image_url'] ?? '')));
+        } catch (RazorpayException $e) {
+            Log::warning('Razorpay QR image download failed', ['qr' => $id, 'error' => $e->getMessage()]);
+        }
+        // The link must be for exactly this payment's amount, or nobody should scan it.
+        if (! $link || abs((UpiQrReader::amount($link) ?? -1) - $amount / 100) > 0.001) {
+            $this->closeAll([$id]);
             throw new UpiException('Could not create a UPI QR code right now.');
         }
 
-        return ['link' => $link, 'reference' => $res['razorpay_payment_id'] ?? null];
+        return [
+            'link' => $link,
+            'reference' => $id,
+            'expires_at' => isset($qr['close_by']) ? (int) $qr['close_by'] : null,
+            // A QR-code link (mode 22) isn't meant to be opened as an app intent; phones use
+            // the Razorpay window's UPI app buttons instead.
+            'open_app' => false,
+        ];
     }
 
     public function collect(Order $order, Payment $payment, string $vpa, array $client): array
     {
-        $minutes = max(1, min(15, (int) config('payments.upi.collect_ttl_minutes', 5)));
-        $res = $this->create($order, $payment, ['flow' => 'collect', 'vpa' => $vpa, 'expiry_time' => $minutes], $client);
-
-        return ['reference' => $res['razorpay_payment_id'] ?? null];
+        throw new UpiException('Paying with a UPI ID happens in the Razorpay window.');
     }
 
     public function validateVpa(string $vpa): ?array
     {
-        try {
-            $res = $this->client->validateVpa($vpa);
-        } catch (RazorpayException $e) {
-            // Only a 400 that is about the VPA itself means "invalid"; anything else (feature not
-            // enabled, network, …) means we can't verify — let the collect request decide.
-            return $e->getCode() === 400 && self::isAboutVpa($e->getMessage()) ? ['valid' => false, 'name' => null] : null;
-        }
-
-        return ['valid' => (bool) ($res['success'] ?? false), 'name' => $res['customer_name'] ?? null];
+        return null;
     }
 
     public function check(Payment $payment): UpiCheck
     {
-        if (! $payment->gateway_order_id) {
-            return UpiCheck::pending();
-        }
-        try {
-            $attempts = $this->client->fetchOrderPayments($payment->gateway_order_id);
-        } catch (RazorpayException) {
-            return UpiCheck::pending(); // try again on the next poll; the webhook also confirms
-        }
-
         $expected = RazorpayGateway::toPaise((float) $payment->amount);
-        foreach ($attempts as $p) {
-            $status = $p['status'] ?? null;
-            if (! in_array($status, ['captured', 'authorized'], true)) {
-                continue;
+        foreach (self::references($payment) as $qrId) {
+            try {
+                $attempts = $this->client->fetchQrPayments($qrId);
+            } catch (RazorpayException) {
+                continue; // try again on the next poll; the webhook also confirms
             }
-            if ((int) ($p['amount'] ?? -1) !== $expected) {
-                Log::error('Razorpay UPI amount mismatch', ['payment' => $payment->id, 'amount' => $p['amount'] ?? null]);
-
-                continue;
-            }
-            if ($status === 'authorized') {
-                try {
-                    $this->client->capture($p['id'], $expected, $payment->currency);
-                } catch (RazorpayException) {
-                    return UpiCheck::pending(); // the webhook captures/confirms it later
+            foreach ($attempts as $p) {
+                $status = $p['status'] ?? null;
+                if (! in_array($status, ['captured', 'authorized'], true)) {
+                    continue;
                 }
+                if ((int) ($p['amount'] ?? -1) !== $expected) {
+                    Log::error('Razorpay UPI amount mismatch', ['payment' => $payment->id, 'amount' => $p['amount'] ?? null]);
+
+                    continue;
+                }
+                if ($status === 'authorized') {
+                    try {
+                        $this->client->capture($p['id'], $expected, $payment->currency);
+                    } catch (RazorpayException) {
+                        return UpiCheck::pending(); // the webhook captures/confirms it later
+                    }
+                }
+
+                return UpiCheck::paid($p['id'], array_filter(['rzp_method' => $p['method'] ?? 'upi', 'vpa' => $p['vpa'] ?? null, 'qr_code_id' => $qrId]));
             }
-
-            return UpiCheck::paid($p['id'], array_filter(['rzp_method' => $p['method'] ?? 'upi', 'vpa' => $p['vpa'] ?? null]));
         }
 
-        // Only the attempt the customer is looking at decides "failed" — an abandoned QR doesn't.
-        $current = collect($attempts)->firstWhere('id', $payment->meta['upi_ref'] ?? null);
-        if (($current['status'] ?? null) === 'failed') {
-            return UpiCheck::failed($current['error_description'] ?? 'The UPI payment was not completed.');
-        }
-
+        // A declined attempt leaves the QR code open for another try, so it isn't "failed".
         return UpiCheck::pending();
     }
 
@@ -131,42 +145,46 @@ class RazorpayUpiProvider implements UpiProvider
         return $this->gateway->refund($payment, $amount);
     }
 
-    private function create(Order $order, Payment $payment, array $upi, array $client): array
+    /** Every QR code shown for this payment (an older one may still be paid just before it closes). */
+    public static function references(Payment $payment): array
     {
-        if (! $payment->gateway_order_id) {
-            throw new UpiException('This payment has expired. Please start again.');
-        }
-        $address = $order->shipping_address ?? [];
-        $contact = preg_replace('/[^0-9+]/', '', (string) ($order->customer_phone ?: ($address['phone'] ?? '')));
-        try {
-            return $this->client->createUpiPayment(array_filter([
-                'amount' => RazorpayGateway::toPaise((float) $payment->amount),
-                'currency' => $payment->currency,
-                'order_id' => $payment->gateway_order_id,
-                'email' => $order->customer_email ?: $order->user?->email,
-                'contact' => $contact ?: null,
-                'method' => 'upi',
-                'description' => 'Order '.$order->order_number,
-                'notes' => ['order_number' => $order->order_number],
-                'ip' => $client['ip'] ?? null,
-                'user_agent' => $client['user_agent'] ?? null,
-                'referer' => $client['referer'] ?? null,
-                'upi' => $upi,
-            ], fn ($v) => $v !== null && $v !== ''));
-        } catch (RazorpayException $e) {
-            $message = $upi['flow'] === 'collect' && $e->getCode() === 400 && self::isAboutVpa($e->getMessage())
-                ? 'Could not send a payment request to this UPI ID. Check the ID, or scan the QR code instead.'
-                : 'UPI payments are temporarily unavailable.';
+        $meta = $payment->meta ?? [];
 
-            throw new UpiException($message, $e->getCode(), $e);
+        return array_values(array_unique(array_filter([...(array) ($meta['upi_refs'] ?? []), $meta['upi_ref'] ?? null],
+            fn ($r) => is_string($r) && str_starts_with($r, 'qr_'))));
+    }
+
+    /** Close every QR code of a payment that is being replaced (another method, a retry…). */
+    public function closeCodes(Payment $payment): void
+    {
+        $this->closeAll(self::references($payment));
+    }
+
+    /** Best effort: an already-closed or paid code just answers with an error. */
+    private function closeAll(array $ids): void
+    {
+        foreach ($ids as $id) {
+            if (is_string($id) && str_starts_with($id, 'qr_')) {
+                try {
+                    $this->client->closeQrCode($id);
+                } catch (RazorpayException) {
+                }
+            }
         }
     }
 
-    /** Razorpay error text that is about the UPI ID (vs. "not enabled", "URL not found", …). */
-    private static function isAboutVpa(string $message): bool
+    private function offKey(): string
     {
-        $m = strtolower($message);
+        return 'razorpay.upi_qr_off.'.md5((string) $this->client->keyId());
+    }
 
-        return (str_contains($m, 'vpa') || str_contains($m, 'upi id')) && ! str_contains($m, 'not enabled') && ! str_contains($m, 'not found on the server');
+    /** Razorpay's answer when UPI QR codes aren't activated for the account. */
+    private static function isFeatureOff(RazorpayException $e): bool
+    {
+        $m = strtolower($e->getMessage());
+
+        return in_array($e->getCode(), [400, 401, 403, 404], true)
+            && (str_contains($m, 'not found on the server') || str_contains($m, 'not enabled') || str_contains($m, 'not activated')
+                || str_contains($m, 'feature') || str_contains($m, 'not allowed') || str_contains($m, 'access'));
     }
 }

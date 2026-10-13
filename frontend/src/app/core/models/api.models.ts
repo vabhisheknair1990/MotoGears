@@ -235,7 +235,7 @@ export type OnlinePaymentCode = Exclude<PaymentCode, 'cod'>;
 export interface PaymentMethodOption { code: PaymentCode; label: string; description: string; available: boolean; unavailable_reason?: string }
 
 /** In-page UPI: what the payment page needs before starting. */
-export interface UpiInfo { available: boolean; demo: boolean; amount: number; payee: string; qr_ttl_seconds: number; collect_ttl_seconds: number }
+export interface UpiInfo { available: boolean; demo: boolean; collect?: boolean; amount: number; payee: string; qr_ttl_seconds: number; collect_ttl_seconds: number }
 
 /** State of an in-page UPI payment, as reported by Laravel (which asks the payment provider). */
 export type UpiStatus = 'idle' | 'pending' | 'paid' | 'failed' | 'expired';
@@ -250,10 +250,12 @@ export interface UpiSession {
   amount: number;
   payee: string;
   demo: boolean;
+  /** false: no UPI ID box on our page — "UPI ID / app" opens Razorpay's window (UPI only). */
+  collect?: boolean;
   transaction_id: string | null;
-  /** QR responses: the code as an SVG data URI, and the upi://pay link it encodes. */
+  /** QR responses: the code as an SVG data URI, and (when a UPI app may open it directly) its upi://pay link. */
   qr?: string;
-  link?: string;
+  link?: string | null;
   /** Paid / failed responses carry the updated order. */
   order?: Order;
 }

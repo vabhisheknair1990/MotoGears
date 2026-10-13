@@ -28,7 +28,7 @@ enum PaymentMethod: string
             self::Razorpay => 'UPI, credit/debit cards, net banking and wallets — secure checkout by Razorpay.',
             self::DemoCard => 'Simulated card payment. Use 4111 1111 1111 1111 for success, 4000 0000 0000 0002 to simulate a decline.',
             self::DemoUpi => 'Simulated UPI payment. Use success@upi for success, failure@upi to simulate a failure.',
-            self::Upi => 'Scan a QR code with any UPI app, or enter your UPI ID and approve the request.',
+            self::Upi => 'Scan a QR code with Google Pay, PhonePe, Paytm or any UPI app — or pay with your UPI ID.',
         };
     }
 

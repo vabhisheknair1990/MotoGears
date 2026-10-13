@@ -63,13 +63,36 @@ describe('UpiPayComponent', () => {
   it('offers the Razorpay window when in-page UPI is unavailable', () => {
     const err = new HttpErrorResponse({ status: 503, error: { message: 'UPI payments are temporarily unavailable.', fallback: 'razorpay' } });
     const { fixture, el } = setup({ qr: vi.fn(() => throwError(() => err)) });
-    let fallback = false;
-    fixture.componentInstance.useRazorpay.subscribe(() => (fallback = true));
+    let upiOnly: boolean | null = null;
+    fixture.componentInstance.useRazorpay.subscribe((v) => (upiOnly = v));
     fixture.detectChanges();
     expect(el.textContent).toContain('UPI payments are temporarily unavailable.');
-    const btn = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pay with Razorpay instead')) as HTMLButtonElement;
+    const btn = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pay by UPI with Razorpay')) as HTMLButtonElement;
     btn.click();
-    expect(fallback).toBe(true);
+    expect(upiOnly).toBe(true);
+  });
+
+  it('with Razorpay, "UPI ID / app" opens the Razorpay window with only UPI', () => {
+    const live = { ...base, demo: false, collect: false };
+    const { fixture, el, api } = setup({
+      status: vi.fn(() => of({ ...live, status: 'idle', flow: null })),
+      qr: vi.fn(() => of({ ...live, qr: 'data:image/svg+xml;base64,PHN2Zy8+', link: null })),
+    });
+    let upiOnly: boolean | null = null;
+    fixture.componentInstance.useRazorpay.subscribe((v) => (upiOnly = v));
+    expect(el.textContent).not.toContain('Simulate payment');
+    expect(el.textContent).not.toContain('Open UPI app to pay'); // QR-code links aren't opened as app intents
+    expect(el.textContent).toContain('Pay with a UPI app'); // phones: Razorpay's UPI app buttons
+
+    const tab = el.querySelectorAll('[role=tab]')[1] as HTMLButtonElement;
+    expect(tab.textContent).toContain('UPI ID / app');
+    tab.click();
+    fixture.detectChanges();
+    expect(el.querySelector('#upi-vpa')).toBeNull();
+    const btn = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Continue to pay')) as HTMLButtonElement;
+    btn.click();
+    expect(upiOnly).toBe(true);
+    expect(api.collect).not.toHaveBeenCalled();
   });
 
   it('announces a paid order', async () => {

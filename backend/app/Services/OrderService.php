@@ -178,7 +178,11 @@ class OrderService
         if ($order->payment_method !== $method) {
             $order->update(['payment_method' => $method]);
         }
-        // A new attempt supersedes any unfinished popup from an earlier one.
+        // A new attempt supersedes any unfinished popup from an earlier one; UPI QR codes shown
+        // for it are closed at Razorpay so they can't be paid any more.
+        $order->payments()->whereIn('status', [PaymentStatus::Initiated, PaymentStatus::Pending])
+            ->where('method', PaymentMethod::Upi->value)->where('gateway', 'razorpay')->get()
+            ->each(fn (\App\Models\Payment $p) => app(\App\Services\Payments\Upi\RazorpayUpiProvider::class)->closeCodes($p));
         $order->payments()->whereIn('status', [PaymentStatus::Initiated, PaymentStatus::Pending])
             ->where('method', '!=', PaymentMethod::CashOnDelivery->value)
             ->update(['status' => PaymentStatus::Failed, 'failure_reason' => 'Superseded by a new payment attempt']);
@@ -332,6 +336,19 @@ class OrderService
             /** @var Payment $locked */
             $locked = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
             if ($locked->status === PaymentStatus::Success || $locked->status === PaymentStatus::Refunded) {
+                // Same attempt paid twice with different money (e.g. two UPI QR codes): record the
+                // extra payment as its own row and refund it below.
+                if ($transactionId !== $locked->transaction_id && ! Payment::where('transaction_id', $transactionId)->exists()) {
+                    $refundNeeded = true;
+
+                    return Payment::create([
+                        'order_id' => $locked->order_id, 'method' => $locked->method, 'gateway' => $locked->gateway,
+                        'gateway_order_id' => $locked->gateway_order_id, 'amount' => $locked->amount, 'currency' => $locked->currency,
+                        'status' => PaymentStatus::Success, 'transaction_id' => $transactionId, 'paid_at' => now(),
+                        'meta' => array_merge($meta, ['confirmed_via' => $source, 'duplicate_of' => $locked->id]),
+                    ]);
+                }
+
                 return $locked;
             }
             $locked->update([

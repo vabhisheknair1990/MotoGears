@@ -23,13 +23,15 @@ return [
     ],
 
     /*
-    | UPI shown on our own page: a QR code to scan with any UPI app (UPI intent) or a
-    | collect request to the customer's UPI ID. The page polls the payment status and the
-    | Razorpay webhook confirms it too, so the order moves on even if the tab is closed.
+    | UPI shown on our own page: a single-use QR code for the exact total, scanned with any
+    | UPI app. The page polls the payment status and the Razorpay qr_code.credited webhook
+    | confirms it too, so the order moves on even if the tab is closed.
     |
     | provider: "auto" (Razorpay when keys are set, otherwise the demo simulator when demo
-    | methods are on), "razorpay" or "demo". Razorpay needs UPI S2S (intent + collect)
-    | enabled on the account — ask Razorpay support to switch it on.
+    | methods are on), "razorpay" or "demo". Razorpay uses its UPI QR Codes API, an on-demand
+    | feature: ask Razorpay support to enable it. Paying with a UPI ID or UPI app button goes
+    | through Razorpay's window (NPCI retired UPI Collect on merchant pages). The collect
+    | setting below only applies to the simulator.
     */
     'upi' => [
         'enabled' => (bool) env('UPI_ENABLED', true),

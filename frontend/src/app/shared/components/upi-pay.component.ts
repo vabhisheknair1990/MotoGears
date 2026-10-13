@@ -14,9 +14,11 @@ export const UPI_ID_PATTERN = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z][a-zA-Z0-9.\-]{1,
 const POLL_MS = 3000;
 
 /**
- * Pay an order by UPI without leaving the page: scan a QR code with any UPI app, or enter a
- * UPI ID and approve the request. The status is polled every few seconds (and right away when
- * the shopper switches back from their UPI app); `paid` fires with the confirmed order.
+ * Pay an order by UPI without leaving the page: scan a QR code with any UPI app. The status is
+ * polled every few seconds (and right away when the shopper switches back from their UPI app);
+ * `paid` fires with the confirmed order. "UPI ID / app" opens Razorpay's window with only UPI
+ * (NPCI retired typing a UPI ID on merchant pages) — except with the demo simulator, which
+ * still shows a UPI ID box.
  */
 @Component({
   selector: 'app-upi-pay',
@@ -28,7 +30,7 @@ const POLL_MS = 3000;
           <app-icon name="qr" [size]="17" /> Scan QR code
         </button>
         <button type="button" role="tab" [class.on]="tab() === 'vpa'" [attr.aria-selected]="tab() === 'vpa'" (click)="switchTab('vpa')">
-          <app-icon name="smartphone" [size]="17" /> Pay with UPI ID
+          <app-icon name="smartphone" [size]="17" /> {{ canCollect() ? 'Pay with UPI ID' : 'UPI ID / app' }}
         </button>
       </div>
 
@@ -45,7 +47,7 @@ const POLL_MS = 3000;
           <p class="text-sm text-muted">{{ session()?.message ?? 'The UPI payment did not go through.' }} No money is taken for a failed payment — if it was deducted, your bank returns it automatically.</p>
           <div class="row gap-8 center wrap">
             <button type="button" class="btn btn-primary" (click)="tab() === 'qr' ? showQr() : resetVpa()">Try again</button>
-            <button type="button" class="btn" (click)="switchTab(tab() === 'qr' ? 'vpa' : 'qr', true)">{{ tab() === 'qr' ? 'Use a UPI ID instead' : 'Scan a QR code instead' }}</button>
+            <button type="button" class="btn" (click)="switchTab(tab() === 'qr' ? 'vpa' : 'qr', true)">{{ tab() === 'qr' ? (canCollect() ? 'Use a UPI ID instead' : 'Use a UPI ID or app instead') : 'Scan a QR code instead' }}</button>
           </div>
         </div>
       } @else if (error(); as err) {
@@ -55,7 +57,7 @@ const POLL_MS = 3000;
           <p class="text-sm text-muted">{{ err }}</p>
           <div class="row gap-8 center wrap">
             <button type="button" class="btn" (click)="tab() === 'qr' ? showQr() : (error.set(null))">Try again</button>
-            @if (fallback()) { <button type="button" class="btn btn-primary" (click)="useRazorpay.emit()">Pay with Razorpay instead</button> }
+            @if (fallback()) { <button type="button" class="btn btn-primary" (click)="useRazorpay.emit(true)">Pay by UPI with Razorpay</button> }
           </div>
         </div>
       } @else if (tab() === 'qr') {
@@ -75,6 +77,9 @@ const POLL_MS = 3000;
             <div class="text-sm text-muted">to {{ session()?.payee ?? 'the store' }}</div>
             @if (appLink(); as link) {
               <a class="btn btn-primary btn-block app-btn" [href]="link"><app-icon name="smartphone" [size]="17" /> Open UPI app to pay</a>
+            } @else if (!canCollect() && phase() !== 'paid') {
+              <!-- Phones: paying with a UPI app on this device goes through Razorpay's UPI buttons. -->
+              <button type="button" class="btn btn-primary btn-block app-btn" (click)="useRazorpay.emit(true)"><app-icon name="smartphone" [size]="17" /> Pay with a UPI app</button>
             }
             <ol class="steps text-sm">
               <li>Open any UPI app — Google Pay, PhonePe, Paytm, BHIM or your bank's app.</li>
@@ -85,6 +90,15 @@ const POLL_MS = 3000;
               <div class="wait" aria-live="polite"><span class="pulse"></span> Waiting for payment… <span class="mono">{{ countdown() }}</span></div>
               <div class="bar"><span [style.width.%]="remainingPct()"></span></div>
             }
+          </div>
+        </div>
+      } @else if (!canCollect()) {
+        <div class="via-rzp">
+          <span class="ic"><app-icon name="smartphone" [size]="24" /></span>
+          <div class="grow">
+            <strong>Pay with your UPI ID or UPI app</strong>
+            <p class="text-sm text-muted">Razorpay's secure window opens with only UPI. On your phone, tap Google Pay, PhonePe, Paytm or your bank's app; on a computer, scan its QR code or use your UPI ID where it offers one. Then approve <strong>{{ amount() | inr }}</strong> with your UPI PIN.</p>
+            <button type="button" class="btn btn-primary" (click)="useRazorpay.emit(true)">Continue to pay {{ amount() | inr }}</button>
           </div>
         </div>
       } @else {
@@ -151,6 +165,9 @@ const POLL_MS = 3000;
     .sent { display: flex; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--success-50, #f0fdf4); }
     .sent .ic { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: var(--success, #16a34a); flex: none; }
     .sent p { margin: 6px 0 10px; }
+    .via-rzp { display: flex; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+    .via-rzp .ic { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--line-2, #eef1f5); flex: none; }
+    .via-rzp p { margin: 6px 0 12px; }
     .vpa-form { display: grid; gap: 6px; }
     .done, .state-box { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 22px 12px; }
     .tick { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--success, #16a34a); color: #fff; }
@@ -183,8 +200,8 @@ export class UpiPayComponent implements OnInit {
   readonly paid = output<Order>();
   /** The order changed (e.g. a failed attempt was recorded). */
   readonly orderChange = output<Order>();
-  /** In-page UPI isn't working; pay in the Razorpay window instead. */
-  readonly useRazorpay = output<void>();
+  /** Pay in Razorpay's window instead; `true` = show only UPI there. */
+  readonly useRazorpay = output<boolean>();
 
   protected readonly tab = signal<'qr' | 'vpa'>('qr');
   protected readonly session = signal<UpiSession | null>(null);
@@ -200,6 +217,8 @@ export class UpiPayComponent implements OnInit {
 
   protected readonly amount = computed(() => this.session()?.amount ?? this.order().grand_total);
   protected readonly isDemo = computed(() => !!this.session()?.demo);
+  /** Whether we can take a UPI ID on this page (only the demo simulator; real UPI IDs go via Razorpay). */
+  protected readonly canCollect = computed(() => (this.session() ?? this.qrSession())?.collect !== false);
   protected readonly qrImage = computed(() => this.qrSession()?.qr ?? null);
   protected readonly appLink = computed<SafeUrl | null>(() => {
     const link = this.qrSession()?.link;

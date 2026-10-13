@@ -63,7 +63,7 @@ class PaymentPayload
             'message' => match ($state) {
                 'paid' => 'Payment successful',
                 'razorpay' => 'Complete the payment in the Razorpay window',
-                'upi' => 'Scan the QR code or enter your UPI ID to pay',
+                'upi' => 'Scan the QR code with any UPI app to pay',
                 default => 'Payment failed: '.$payment->failure_reason,
             },
             'data' => $this->data($request, $order->fresh(), $payment, $state, $state === 'paid'),

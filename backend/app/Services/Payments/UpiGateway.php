@@ -8,7 +8,7 @@ use App\Services\Payments\Upi\UpiException;
 use App\Services\Payments\Upi\UpiProviders;
 
 /**
- * UPI paid on our own page (QR code or UPI ID). charge() only opens the provider order and
+ * UPI paid on our own page (QR code). charge() only opens the provider order and
  * leaves the payment pending; UpiPaymentService then shows the QR / sends the collect
  * request and confirms the payment by polling the provider (plus the webhook).
  */

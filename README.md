@@ -161,7 +161,7 @@ How it works (all amounts and checks are server-side):
   is logged in the order timeline for manual handling.
 - **Webhook (recommended in production):** Dashboard → *Webhooks* → URL
   `https://api.themotogears.in/v1/webhooks/razorpay`, events `payment.captured`, `payment.authorized`,
-  `payment.failed`, `order.paid`, and a secret you put in `RAZORPAY_WEBHOOK_SECRET`. It confirms orders even
+  `payment.failed`, `order.paid`, `qr_code.credited` (UPI QR codes), and a secret you put in `RAZORPAY_WEBHOOK_SECRET`. It confirms orders even
   if the customer closes the browser before verification. Locally it needs a public tunnel (e.g. ngrok).
 - **Closed window, missing webhook:** opening the order (success page, My orders, guest order page) asks
   Razorpay about pending attempts and confirms the order if it was paid; the unpaid-order job does the
@@ -175,41 +175,48 @@ How it works (all amounts and checks are server-side):
   storefront shows no banner, so the site looks exactly like launch (e.g. for the bank's review). Use
   live `rzp_live_…` keys (and a live-mode webhook) when you launch, and keep `PAYMENT_DEMO_METHODS=false`.
 
-### UPI — QR code and UPI ID on our own page
+### UPI — QR code on our own page
 
 **UPI** is the first payment option at checkout. After *Place order & pay by UPI* the shopper lands on
 the payment page (`/order-success/:number`) with two tabs:
 
-1. **Scan QR code** — a QR code (a `upi://pay` link, rendered as SVG by Laravel — no third-party QR
-   service) for the exact order total. Scan with Google Pay, PhonePe, Paytm, BHIM or any bank app. On
-   phones an **Open UPI app to pay** button opens the UPI app directly. The QR is valid for 10 minutes
-   (`UPI_QR_TTL_MINUTES`), with a countdown; an expired QR can be replaced with one click.
-2. **Pay with UPI ID** — the shopper types their UPI ID (e.g. `98xxxxxx10@ybl`); it is checked first
-   (and the account holder's name shown), then a payment request is sent. They approve it in their UPI
-   app with their PIN within 5 minutes (`UPI_COLLECT_TTL_MINUTES`).
+1. **Scan QR code** — a single-use Razorpay **UPI QR code** for the exact order total
+   (`POST /payments/qr_codes`, `fixed_amount`, closes itself after `UPI_QR_TTL_MINUTES`, default 10).
+   Laravel reads the `upi://pay` link out of Razorpay's QR image, checks the amount in it, and draws a
+   clean QR (SVG) on our page. Scan with Google Pay, PhonePe, Paytm, BHIM or any bank app; a countdown
+   shows the time left and an expired code is replaced with one click (the old one is closed at Razorpay).
+   On phones a **Pay with a UPI app** button opens Razorpay's window with only UPI, where the shopper
+   taps their UPI app.
+2. **UPI ID / app** — opens Razorpay's secure window showing only UPI (UPI apps on phones, QR / UPI ID
+   where Razorpay offers it). NPCI retired "UPI Collect" (typing a UPI ID on the merchant's own page) for
+   web checkouts from 28 Feb 2026, so this always goes through Razorpay.
 
 While waiting, the page asks Laravel for the status every 3 seconds (and immediately when the shopper
-switches back from their UPI app). Laravel asks Razorpay — the browser never decides that an order is
-paid. As soon as the money arrives the order becomes **Confirmed / Paid**, the confirmation shows and
-the usual emails go out. If the tab was closed, the Razorpay webhook confirms it instead.
+switches back from their UPI app). Laravel asks Razorpay (`GET /payments/qr_codes/{id}/payments`) — the
+browser never decides that an order is paid. As soon as the money arrives the order becomes
+**Confirmed / Paid**, the confirmation shows and the usual emails go out. If the tab was closed, the
+`qr_code.credited` webhook confirms it, and opening the order page checks Razorpay again.
 
-- **Declined / expired:** the order stays *pending* with stock reserved; the page offers "Try again" or
-  the other tab. Unpaid orders are cancelled after the unpaid-order timeout (Settings).
+- **Declined / expired:** the order stays *pending* with stock reserved; the page offers "Try again".
+  Unpaid orders are cancelled after the unpaid-order timeout (Settings).
 - **Retry later:** *Complete payment* on the order page (customer or guest) opens the same UPI page.
-- **Duplicates:** if both the QR and a request get paid, the extra payment is refunded automatically.
+- **Duplicates:** if two QR codes of the same order both get paid, the extra payment is refunded automatically.
 - **Refunds:** cancelling a paid UPI order refunds through Razorpay.
-- **Admin:** each payment shows "Scanned QR code" or "Request to UPI ID", the payer's UPI ID and name.
+- **Admin:** each payment shows the payer's UPI ID and the Razorpay payment id.
+
+**Razorpay setup for UPI QR codes (live account):**
+1. UPI must be enabled on the account (it is, once KYC/activation is done — checked via `GET /methods`).
+2. **UPI QR Codes** is an on-demand Razorpay feature. If Razorpay refuses to create a code, the page
+   falls back to **Pay with Razorpay** (whose window also takes UPI) and the in-page UPI option is hidden
+   for an hour; ask Razorpay support to "enable UPI QR Codes (`upi_qr`) on the API" for the account.
+3. Add the **`qr_code.credited`** event to the webhook (Dashboard → Account & Settings → Webhooks).
 
 Provider (`UPI_PROVIDER`): `auto` uses **Razorpay** when keys are set, otherwise the **simulator** (with
-*Simulate payment / failure* buttons) while `PAYMENT_DEMO_METHODS=true`. With Razorpay it uses the S2S
-UPI API (`/payments/create/upi` with `flow: intent` for the QR and `flow: collect` for UPI IDs, plus
-`/payments/validate/vpa`). **Ask Razorpay support to enable "UPI S2S (intent + collect)" on your
-account.** Until it is enabled, the UPI page shows "UPI is not available right now" with a
-**Pay with Razorpay instead** button (Razorpay's own window also takes UPI), so no order is stuck —
-or set `UPI_ENABLED=false` to hide the option. In Razorpay test mode use the UPI ID
-`success@razorpay` / `failure@razorpay`.
+*Simulate payment / failure* buttons, and a demo UPI ID box) while `PAYMENT_DEMO_METHODS=true`. Set
+`UPI_ENABLED=false` to hide the in-page option. In Razorpay test mode a QR code can be "paid" from the
+Dashboard (Payments → QR Codes → the code → *Make test payment*), if Razorpay offers it.
 
-API: `POST /orders/{id}/upi/qr`, `POST /orders/{id}/upi/collect` `{vpa}`, `GET /orders/{id}/upi/status`
+API: `POST /orders/{id}/upi/qr`, `GET /orders/{id}/upi/status`, `POST /orders/{id}/upi/collect` `{vpa}` (simulator only)
 (guests: `/guest/orders/{number}/upi/...` with `X-Order-Token`); `POST …/upi/simulate` works only
 with the simulator.
 

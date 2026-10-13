@@ -7,8 +7,8 @@ use App\Models\Payment;
 use App\Services\Payments\PaymentResult;
 
 /**
- * Who actually moves the money for an in-page UPI payment (Razorpay S2S UPI, or the demo
- * simulator). Every method may throw UpiException when the provider refuses or is unreachable.
+ * Who actually moves the money for an in-page UPI payment (Razorpay UPI QR codes, or the
+ * demo simulator). Every method may throw UpiException when the provider refuses or is unreachable.
  */
 interface UpiProvider
 {
@@ -23,13 +23,18 @@ interface UpiProvider
     public function openOrder(Order $order, Payment $payment): string;
 
     /**
-     * Start an intent payment: the returned upi://pay link is shown as a QR code (and opens
-     * the UPI app directly on phones).
+     * Start a QR payment: the returned upi://pay link is shown as a QR code. `open_app` says
+     * whether phones may open the link directly in a UPI app; `expires_at` (unix time) is when
+     * the provider stops accepting it, when the provider decides that.
      *
      * @param  array{ip?: ?string, user_agent?: ?string, referer?: ?string}  $client
-     * @return array{link: string, reference: ?string}
+     * @param  list<string>  $previous  earlier references of this payment (to be closed)
+     * @return array{link: string, reference: ?string, expires_at?: ?int, open_app?: bool}
      */
-    public function intent(Order $order, Payment $payment, array $client): array;
+    public function intent(Order $order, Payment $payment, array $client, array $previous = []): array;
+
+    /** Whether customers can type a UPI ID on our page (collect requests). */
+    public function supportsCollect(): bool;
 
     /**
      * Send a collect request to the customer's UPI ID; they approve it in their UPI app.

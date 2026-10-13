@@ -57,7 +57,7 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
               }
             </div>
             @if (method() === 'upi') {
-              <app-upi-pay [order]="o" [token]="token()" (paid)="onPaid($event)" (orderChange)="order.set($event)" (useRazorpay)="payWithRazorpay()" />
+              <app-upi-pay [order]="o" [token]="token()" (paid)="onPaid($event)" (orderChange)="order.set($event)" (useRazorpay)="payWithRazorpay($event)" />
             } @else if (method() === 'razorpay') {
               <p class="text-sm text-muted mb-0">Pay by UPI, card, net banking or wallet in Razorpay's secure window.</p>
             } @else if (method() === 'demo_card') {
@@ -202,13 +202,13 @@ export class OrderSuccessPage {
     globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
 
-  /** In-page UPI is unavailable: pay in Razorpay's window (which also takes UPI). */
-  protected payWithRazorpay(): void {
+  /** Pay in Razorpay's window instead of the in-page QR (UPI ID / UPI app buttons, or QR trouble). */
+  protected payWithRazorpay(upiOnly = false): void {
     this.chosen.set('razorpay');
-    this.retry();
+    this.retry(upiOnly);
   }
 
-  retry(): void {
+  retry(upiOnly = false): void {
     const o = this.order();
     const method = this.method();
     if (!o || !method) return;
@@ -223,7 +223,7 @@ export class OrderSuccessPage {
       next: (r) => {
         this.order.set(r.result.order);
         if (r.result.razorpay) {
-          this.razorpay.checkout(o.id, r.result.razorpay, guest).then(
+          this.razorpay.checkout(o.id, r.result.razorpay, guest, upiOnly).then(
             (outcome) => {
               this.paying.set(false);
               if (outcome.status === 'paid') {

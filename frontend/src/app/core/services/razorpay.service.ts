@@ -18,6 +18,18 @@ interface RazorpayInstance { open(): void; on(event: 'payment.failed', cb: (r: R
 type RazorpayCtor = new (options: Record<string, unknown>) => RazorpayInstance;
 
 /**
+ * Checkout display config that leaves only UPI: Razorpay's own UPI QR on computers, UPI app
+ * buttons (Google Pay, PhonePe…) on phones. Hiding the other methods works on both; a custom
+ * UPI-only block finds "no appropriate payment method" on desktop.
+ */
+export const UPI_ONLY = {
+  display: {
+    hide: ['card', 'netbanking', 'wallet', 'emi', 'cardless_emi', 'paylater'].map((method) => ({ method })),
+    preferences: { show_default_blocks: true },
+  },
+};
+
+/**
  * Opens Razorpay Standard Checkout for an order Laravel already created on Razorpay.
  * The browser only relays Razorpay's signed response; Laravel verifies the HMAC signature,
  * amount and order before marking anything paid. No keys other than the public key_id
@@ -47,9 +59,12 @@ export class RazorpayService {
     return this.loader;
   }
 
-  /** Opens the popup and resolves once the payment is verified, failed for good, or the popup is closed. */
-  /** `guest` (order number + secret token) routes verification through the guest order API. */
-  async checkout(orderId: number, options: RazorpayCheckoutOptions, guest?: { number: string; token: string }): Promise<RazorpayOutcome> {
+  /**
+   * Opens the popup and resolves once the payment is verified, failed for good, or the popup is closed.
+   * `guest` (order number + secret token) routes verification through the guest order API.
+   * `upiOnly` shows only UPI in the window (UPI apps on phones, QR / UPI ID where Razorpay offers it).
+   */
+  async checkout(orderId: number, options: RazorpayCheckoutOptions, guest?: { number: string; token: string }, upiOnly = false): Promise<RazorpayOutcome> {
     const Razorpay = await this.load();
     return new Promise<RazorpayOutcome>((resolve) => {
       let settled = false;
@@ -70,6 +85,7 @@ export class RazorpayService {
         image: options.image,
         notes: options.notes,
         theme: options.theme,
+        ...(upiOnly ? { config: UPI_ONLY } : {}),
         retry: { enabled: true },
         handler: (res: RazorpaySuccess) => {
           firstValueFrom(this.verify(orderId, res, guest))

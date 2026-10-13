@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Services\OrderService;
 use App\Services\Payments\RazorpayGateway;
+use App\Services\Payments\Upi\RazorpayUpiProvider;
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -106,6 +107,14 @@ class RazorpayPaymentService
             || (! $force && ! Cache::add('rzp-reconcile:'.$payment->id, 1, 15))) {
             return $payment;
         }
+        if ($payment->method === PaymentMethod::Upi->value) {
+            // In-page UPI QR codes aren't Razorpay orders: ask about the QR codes instead.
+            $check = app(RazorpayUpiProvider::class)->check($payment);
+
+            return $check->status === 'paid'
+                ? $this->orders->completeOnlinePayment($payment, $check->transactionId, $check->meta, null, 'reconcile')
+                : $payment;
+        }
         try {
             $attempts = $this->client->fetchOrderPayments($payment->gateway_order_id);
         } catch (RazorpayException) {
@@ -145,6 +154,9 @@ class RazorpayPaymentService
     {
         $type = $event['event'] ?? '';
         $entity = $event['payload']['payment']['entity'] ?? null;
+        if ($type === 'qr_code.credited') {
+            return $this->handleQrCredit($entity, $event['payload']['qr_code']['entity'] ?? null);
+        }
         if (! $entity || ! in_array($type, ['payment.captured', 'order.paid', 'payment.authorized', 'payment.failed'], true)) {
             return 'ignored';
         }
@@ -171,6 +183,41 @@ class RazorpayPaymentService
             }
         }
         $this->orders->completeOnlinePayment($payment, $entity['id'], $this->describe($entity), null, 'webhook');
+
+        return 'paid';
+    }
+
+    /** A UPI QR code shown on our payment page was paid (qr_code.credited). */
+    private function handleQrCredit(?array $entity, ?array $qr): string
+    {
+        $qrId = (string) ($qr['id'] ?? '');
+        if (! $entity || ! preg_match('/^qr_[A-Za-z0-9]+$/', $qrId)) {
+            return 'ignored';
+        }
+        $payment = Payment::where('gateway', 'razorpay')->where('method', PaymentMethod::Upi->value)
+            ->whereKey((int) ($qr['notes']['payment_id'] ?? 0))->first();
+        // Notes can't be trusted to be present on every event; fall back to the codes we recorded.
+        $payment ??= Payment::where('gateway', 'razorpay')->where('method', PaymentMethod::Upi->value)
+            ->where('meta', 'like', '%"'.$qrId.'"%')->latest('id')->first();
+        if (! $payment || ! in_array($qrId, RazorpayUpiProvider::references($payment), true)) {
+            return 'unknown_order';
+        }
+        if (! in_array($entity['status'] ?? null, ['captured', 'authorized'], true)) {
+            return 'ignored';
+        }
+        if ((int) ($entity['amount'] ?? 0) !== RazorpayGateway::toPaise((float) $payment->amount)) {
+            Log::error('Razorpay QR webhook amount mismatch', ['payment' => $payment->id, 'amount' => $entity['amount'] ?? null]);
+
+            return 'amount_mismatch';
+        }
+        if (($entity['status'] ?? null) === 'authorized') {
+            try {
+                $this->client->capture($entity['id'], (int) $entity['amount'], $payment->currency);
+            } catch (RazorpayException) {
+                return 'capture_failed';
+            }
+        }
+        $this->orders->completeOnlinePayment($payment, $entity['id'], $this->describe($entity) + ['qr_code_id' => $qrId], null, 'webhook');
 
         return 'paid';
     }

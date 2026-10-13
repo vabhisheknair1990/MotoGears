@@ -39,7 +39,7 @@ class DemoUpiProvider implements UpiProvider
         return 'upi_demo_'.Str::lower(Str::random(14));
     }
 
-    public function intent(Order $order, Payment $payment, array $client): array
+    public function intent(Order $order, Payment $payment, array $client, array $previous = []): array
     {
         $link = 'upi://pay?'.http_build_query([
             'pa' => config('payments.upi.demo_vpa', 'motogears@demo'),
@@ -50,7 +50,12 @@ class DemoUpiProvider implements UpiProvider
             'tr' => $payment->gateway_order_id,
         ], '', '&', PHP_QUERY_RFC3986);
 
-        return ['link' => $link, 'reference' => 'demo_pay_'.Str::lower(Str::random(12))];
+        return ['link' => $link, 'reference' => 'demo_pay_'.Str::lower(Str::random(12)), 'open_app' => true];
+    }
+
+    public function supportsCollect(): bool
+    {
+        return true;
     }
 
     public function collect(Order $order, Payment $payment, string $vpa, array $client): array

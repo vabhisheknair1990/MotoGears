@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, isDevMode, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -36,11 +36,14 @@ import { LogoComponent } from '../../../shared/components/logo.component';
           </div>
           <button class="btn btn-primary btn-lg btn-block" [disabled]="busy()">@if (busy()) { <span class="spinner"></span> } Sign in</button>
         </form>
-        <div class="demo">
-          <strong>Demo account</strong>
-          <span>admin&#64;example.com / password</span>
-          <button type="button" class="link text-sm" (click)="fillDemo()">Fill in</button>
-        </div>
+        @if (showDemo) {
+          <!-- Local development only: the seeded demo login. Never shown in a production build. -->
+          <div class="demo">
+            <strong>Demo account</strong>
+            <span>admin&#64;example.com / password</span>
+            <button type="button" class="link text-sm" (click)="fillDemo()">Fill in</button>
+          </div>
+        }
         <a routerLink="/" class="back"><app-icon name="arrow-left" [size]="14" /> Back to store</a>
       </div>
     </main>
@@ -80,6 +83,8 @@ export class AdminLoginPage {
   constructor() {
     inject(SeoService).set({ title: 'Admin sign in' });
   }
+
+  protected readonly showDemo = isDevMode();
 
   protected fillDemo(): void {
     this.form.setValue({ email: 'admin@example.com', password: 'password' });

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, isDevMode, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -34,7 +34,10 @@ import { IconComponent } from '../../../shared/components/icon.component';
           <button class="btn btn-primary btn-lg btn-block" [disabled]="busy()">@if (busy()) { <span class="spinner"></span> } Log in</button>
         </form>
         <p class="alt">New to MotoGears? <a routerLink="/register" [queryParams]="{ returnUrl: returnUrl() }" class="link">Create an account</a></p>
-        <div class="demo">Demo customer: <button type="button" (click)="fillDemo()">customer&#64;example.com / password</button></div>
+        @if (showDemo) {
+          <!-- Local development only: the seeded demo login. Never shown in a production build. -->
+          <div class="demo">Demo customer: <button type="button" (click)="fillDemo()">customer&#64;example.com / password</button></div>
+        }
       </div>
     </div>
   `,
@@ -58,6 +61,8 @@ export class LoginPage {
   constructor() {
     inject(SeoService).set({ title: 'Log in' });
   }
+
+  protected readonly showDemo = isDevMode();
 
   fillDemo(): void {
     this.form.patchValue({ email: 'customer@example.com', password: 'password' });

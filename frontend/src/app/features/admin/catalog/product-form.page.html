@@ -254,7 +254,8 @@
           <div class="field">
             <label class="label" for="p-vt">Vehicle type <span class="req">*</span></label>
             <select id="p-vt" class="select" formControlName="vehicle_type">
-              <option value="car">Car</option><option value="motorcycle">Motorcycle</option><option value="universal">Universal</option>
+              @if (scope.sellsCars() || form.controls.vehicle_type.value === 'car') { <option value="car">Car</option> }
+              <option value="motorcycle">Motorcycle</option><option value="universal">Universal</option>
             </select>
           </div>
           <div class="field">

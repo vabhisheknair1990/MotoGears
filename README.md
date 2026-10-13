@@ -471,10 +471,18 @@ The site and the API run on two hosts:
 docker compose exec backend php artisan app:create-admin you@themotogears.in   # asks for a strong password
 docker compose exec backend php artisan app:set-password someone@themotogears.in
 docker compose exec backend php artisan app:remove-demo-staff                    # lock admin@example.com & co.
+docker compose exec backend php artisan app:clean-live-data                      # remove demo data + car catalogue
 ```
-A server that was first started with demo data still has the demo logins (`admin@example.com` / `password`):
-create your own admin and run `app:remove-demo-staff`, or reset to a clean store with `docker compose down -v`
-(deletes all data) and start again with the production `.env`.
+A server that was first started with demo data still has the demo logins (`admin@example.com` / `password`).
+Create your own admin first, then run **`app:clean-live-data`**: it lists what it will delete and asks before
+deleting — every `@example.com` login and customer with their orders, `@example.com` guest orders, demo
+coupons (except a code a home-page banner advertises), demo contact messages and newsletter sign-ups, and
+the whole car catalogue (car products, car categories, car makes/models/variants, car-only brands, car
+testimonials, blog posts and search terms). Real orders and customers, staff, bike & universal products,
+categories, brands, bike makes, settings, pages, FAQs and other content stay; stock reservations and
+ratings are recalculated. It refuses to run until a non-demo super admin exists. Take a database backup
+first. To start from an empty store instead, `docker compose down -v` (deletes all data) and start again
+with the production `.env`.
 
 4. **Razorpay webhook** — `https://api.themotogears.in/v1/webhooks/razorpay`.
 

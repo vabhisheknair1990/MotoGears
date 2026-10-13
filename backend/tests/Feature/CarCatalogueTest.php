@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\Testimonial;
 use App\Models\VehicleManufacturer;
 use App\Models\VehicleModel;
+use App\Models\User;
 use Tests\TestCase;
 
 /** "Sell car parts" off: the storefront shows no car parts, makes or brands; the admin still does. */
@@ -95,4 +96,64 @@ class CarCatalogueTest extends TestCase
         $this->assertStringNotContainsString('car', $post->fresh()->content);
         $this->assertStringStartsWith('Brake pads are the single most important wear item on your bike', $post->fresh()->excerpt);
     }
+
+    /** Places a COD order for $user (bypassing the hidden-car check so car parts can be ordered too). */
+    private function orderFor(User $user, Product $product): \App\Models\Order
+    {
+        $this->sellCarParts(true);
+        \Laravel\Sanctum\Sanctum::actingAs($user);
+        $this->postJson($this->api('cart/items'), ['product_id' => $product->id, 'quantity' => 2])->assertCreated();
+        $id = $this->postJson($this->api('orders'), ['shipping_address_id' => $this->address($user)->id, 'shipping_method' => 'standard', 'payment_method' => 'cod'])
+            ->assertCreated()->json('data.order.id');
+        $this->sellCarParts(false);
+
+        return \App\Models\Order::findOrFail($id);
+    }
+
+    public function test_clean_live_data_removes_demo_people_and_the_car_catalogue_but_keeps_real_orders(): void
+    {
+        $demo = $this->customer(['email' => 'aarav.menon@example.com']);
+        $demoStaff = $this->staff(Role::SUPER_ADMIN, ['email' => 'admin@example.com']);
+        $real = $this->customer(['email' => 'real.rider@gmail.com']);
+        $demoOrder = $this->orderFor($demo, $this->bikePart);
+        $realOrder = $this->orderFor($real, $this->carPart);
+        $this->assertSame(2, (int) \App\Models\Inventory::where('product_id', $this->bikePart->id)->value('reserved'));
+        \App\Models\Coupon::factory()->create(['code' => 'WELCOME10']);
+
+        // Refuses while the only super admin is a demo login.
+        $this->artisan('app:clean-live-data', ['--force' => true])->assertExitCode(1);
+        $this->assertNotNull(Product::find($this->carPart->id));
+
+        $this->artisan('app:create-admin', ['email' => 'owner@motogears.in', '--password' => 'Strong-pass-2026'])->assertExitCode(0);
+        $this->artisan('app:clean-live-data', ['--force' => true])->assertExitCode(0);
+
+        // Demo people and their orders are gone; real ones stay.
+        $this->assertDatabaseMissing('users', ['id' => $demo->id]);
+        $this->assertDatabaseMissing('users', ['id' => $demoStaff->id]);
+        $this->assertDatabaseMissing('orders', ['id' => $demoOrder->id]);
+        $this->assertDatabaseHas('users', ['email' => 'real.rider@gmail.com']);
+        $this->assertDatabaseHas('orders', ['id' => $realOrder->id]);
+        // The real order keeps its line even though the car product is gone.
+        $this->assertDatabaseHas('order_items', ['order_id' => $realOrder->id, 'product_id' => null, 'product_name' => $this->carPart->name]);
+        // The demo order's reservation is released.
+        $this->assertSame(0, (int) \App\Models\Inventory::where('product_id', $this->bikePart->id)->value('reserved'));
+
+        // Car catalogue gone (even from the admin); bike and universal kept.
+        $this->assertNull(Product::withTrashed()->find($this->carPart->id));
+        $this->assertNotNull(Product::find($this->bikePart->id));
+        $this->assertNotNull(Product::find($this->universal->id));
+        $this->assertDatabaseMissing('categories', ['slug' => 'car-parts']);
+        $this->assertDatabaseMissing('brands', ['slug' => 'denso']);
+        $this->assertDatabaseHas('brands', ['slug' => 'rolon']);
+        $this->assertDatabaseMissing('vehicle_manufacturers', ['slug' => 'maruti-suzuki']);
+        $this->assertDatabaseMissing('vehicle_models', ['slug' => 'swift']);
+        $this->assertDatabaseHas('vehicle_models', ['slug' => 'classic-350']);
+        $this->assertSame(['Arjun'], Testimonial::pluck('name')->all());
+        $this->assertDatabaseMissing('coupons', ['code' => 'WELCOME10']);
+
+        \Laravel\Sanctum\Sanctum::actingAs(User::where('email', 'owner@motogears.in')->first());
+        $this->getJson($this->api('admin/products'))->assertOk()->assertJsonCount(2, 'data');
+        $this->getJson($this->api("admin/orders/{$realOrder->id}"))->assertOk();
+    }
 }
+

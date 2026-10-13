@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormArray, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, concatMap, from, last, of } from 'rxjs';
+import { CatalogScopeService } from '../../../core/services/catalog-scope.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { SeoService } from '../../../core/services/seo.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -50,6 +51,7 @@ export class ProductFormPage {
   readonly id = input<string | undefined>(undefined);
 
   private readonly api = inject(AdminApiService);
+  protected readonly scope = inject(CatalogScopeService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
@@ -84,7 +86,7 @@ export class ProductFormPage {
       part_number: ['', Validators.maxLength(100)],
       category_id: [null as number | null, Validators.required],
       brand_id: [null as number | null, Validators.required],
-      vehicle_type: ['car', Validators.required],
+      vehicle_type: ['motorcycle', Validators.required],
       is_universal: [false],
       position: [''],
       short_description: ['', Validators.maxLength(500)],

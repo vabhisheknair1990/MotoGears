@@ -50,6 +50,23 @@ class HomepageController extends Controller
         return $this->ok($data, 'Homepage retrieved successfully');
     }
 
+    /**
+     * Featured categories that have something to buy. A parent category counts the products of
+     * its sub-categories too (e.g. "Motorcycle Parts" holds none directly).
+     */
+    private function featuredCategories(): \Illuminate\Support\Collection
+    {
+        return Category::active()->where('is_featured', true)->with(['children' => fn ($q) => $q->active()])
+            ->orderBy('sort_order')->get()
+            ->each(function (Category $c) {
+                $ids = [$c->id, ...$c->children->pluck('id')->all()];
+                $c->setAttribute('products_count', Product::active()->whereIn('category_id', $ids)->count());
+                $c->unsetRelation('children');
+            })
+            ->filter(fn (Category $c) => $c->products_count > 0)
+            ->take(8)->values(); // two full rows of four
+    }
+
     private function build(Request $request): array
     {
         $cards = fn ($q) => ProductCardResource::collection($q->with(ProductQueryService::CARD_RELATIONS)->limit(8)->get())->resolve($request);
@@ -57,9 +74,7 @@ class HomepageController extends Controller
         return [
             'hero_banners' => BannerResource::collection(Banner::live()->where('placement', 'hero')->get())->resolve($request),
             'promo_banners' => BannerResource::collection(Banner::live()->whereIn('placement', ['promo', 'offer'])->get())->resolve($request),
-            'featured_categories' => CategoryResource::collection(
-                Category::active()->where('is_featured', true)->withCount(['products' => fn ($q) => $q->active()])->orderBy('sort_order')->limit(12)->get()
-            )->resolve($request),
+            'featured_categories' => CategoryResource::collection($this->featuredCategories())->resolve($request),
             'featured_products' => $cards(Product::active()->where('is_featured', true)->orderByDesc('sold_count')),
             'best_sellers' => $cards(Product::active()->orderByDesc('sold_count')),
             'new_arrivals' => $cards(Product::active()->latest('created_at')->latest('id')),

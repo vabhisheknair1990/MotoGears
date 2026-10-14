@@ -100,14 +100,12 @@ SVG;
     {
         [$bg1, $bg2, $accent] = self::PALETTES[$palette] ?? self::PALETTES['default'];
         $iconSvg = self::icon($icon, $accent);
-        $labelText = htmlspecialchars($label, ENT_XML1);
+        // No text in the picture: the storefront writes the category name over the tile itself.
         $svg = <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="$bg2"/><stop offset="1" stop-color="$bg1"/></linearGradient></defs>
   <rect width="600" height="400" fill="url(#g)"/>
   <g transform="translate(430 200) scale(0.8)" opacity="0.95">$iconSvg</g>
-  <text x="40" y="330" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800" fill="#fff">$labelText</text>
-  <rect x="40" y="350" width="60" height="4" fill="$accent"/>
 </svg>
 SVG;
 

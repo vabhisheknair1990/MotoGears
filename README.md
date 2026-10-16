@@ -220,7 +220,7 @@ API: `POST /orders/{id}/upi/qr`, `GET /orders/{id}/upi/status`, `POST /orders/{i
 (guests: `/guest/orders/{number}/upi/...` with `X-Order-Token`); `POST …/upi/simulate` works only
 with the simulator.
 
-Seed data (fresh install): 25 customers + 6 staff, 13 vehicle manufacturers, 40 models, 86 variants
+Seed data (fresh install): 25 customers + 6 staff, 13 vehicle manufacturers, 40 models, 86 variants,
 32 categories (parent + child), 28 brands, 172 products with generated images, 90
 historical orders across every status and payment method, 135 reviews, plus banners, pages, FAQs, blog
 posts and testimonials.

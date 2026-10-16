@@ -80,7 +80,7 @@ import { IconComponent } from '../../../shared/components/icon.component';
               </div>
               <div class="field">
                 <label class="label" for="c-msg">Message <span class="req">*</span></label>
-                <textarea id="c-msg" class="textarea" rows="6" formControlName="message" placeholder="Tell us your vehicle (make, model, year, variant) and what you need help with."></textarea>
+                <textarea id="c-msg" class="textarea" rows="6" formControlName="message" placeholder="Tell us your vehicle (make, model, variant) and what you need help with."></textarea>
                 @if (show('message')) { <span class="error-text">{{ msg('message', 'Please write at least 10 characters.') }}</span> }
                 <span class="hint">{{ form.controls.message.value.length }}/3000</span>
               </div>

@@ -32,7 +32,6 @@ Route::get('brands/{slug}', [V1\BrandController::class, 'show'])->name('brands.s
 Route::prefix('vehicles')->name('vehicles.')->group(function () {
     Route::get('manufacturers', [V1\VehicleController::class, 'manufacturers'])->name('manufacturers');
     Route::get('models', [V1\VehicleController::class, 'models'])->name('models');
-    Route::get('years', [V1\VehicleController::class, 'years'])->name('years');
     Route::get('variants', [V1\VehicleController::class, 'variants'])->name('variants');
     Route::get('variants/{variant}', [V1\VehicleController::class, 'showVariant'])->name('variants.show');
 });

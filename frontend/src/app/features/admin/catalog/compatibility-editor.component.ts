@@ -7,7 +7,7 @@ import { AdminModel, AdminVariant, CompatibilityInput, CompatibilityRow } from '
 
 /**
  * Edits a product's fitment list. Each row targets a manufacturer, a model
- * (all variants) or one exact variant, optionally limited to a year range.
+ * (all variants) or one exact variant.
  * Dropdowns are dependent: make → model → variant.
  */
 @Component({
@@ -33,16 +33,8 @@ import { AdminModel, AdminVariant, CompatibilityInput, CompatibilityRow } from '
         <label class="label" for="cm-var">Variant</label>
         <select id="cm-var" class="select" [disabled]="!model() || loadingVariants()" [value]="variant() ?? ''" (change)="variant.set(+$any($event.target).value || null)">
           <option value="">{{ loadingVariants() ? 'Loading…' : 'All variants' }}</option>
-          @for (v of variants(); track v.id) { <option [value]="v.id">{{ v.name }} ({{ v.year_range }})</option> }
+          @for (v of variants(); track v.id) { <option [value]="v.id">{{ v.name }}</option> }
         </select>
-      </div>
-      <div class="f sm">
-        <label class="label" for="cm-yf">Year from</label>
-        <input id="cm-yf" class="input" type="number" min="1950" max="2100" [value]="yearFrom() ?? ''" (input)="yearFrom.set(+$any($event.target).value || null)" />
-      </div>
-      <div class="f sm">
-        <label class="label" for="cm-yt">Year to</label>
-        <input id="cm-yt" class="input" type="number" min="1950" max="2100" [value]="yearTo() ?? ''" (input)="yearTo.set(+$any($event.target).value || null)" />
       </div>
       <div class="f grow">
         <label class="label" for="cm-notes">Notes</label>
@@ -59,7 +51,6 @@ import { AdminModel, AdminVariant, CompatibilityInput, CompatibilityRow } from '
             <app-icon name="bike" [size]="16" />
             <span class="grow"><strong>{{ r.manufacturer.name }}</strong>@if (r.model) { › {{ r.model.name }} }@if (r.variant) { › {{ r.variant.name }} }
               @if (!r.model) { <span class="badge">all models</span> } @else if (!r.variant) { <span class="badge">all variants</span> }
-              @if (r.year_from || r.year_to) { <span class="text-muted text-sm"> · {{ r.year_from ?? '…' }}–{{ r.year_to ?? 'present' }}</span> }
               @if (r.notes) { <span class="text-muted text-sm"> · {{ r.notes }}</span> }
             </span>
             <button type="button" class="icon-btn sm" (click)="remove($index)" [attr.aria-label]="'Remove fitment ' + r.manufacturer.name"><app-icon name="x" [size]="16" /></button>
@@ -73,7 +64,6 @@ import { AdminModel, AdminVariant, CompatibilityInput, CompatibilityRow } from '
   styles: `
     .adder { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
     .f { display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 0; }
-    .f.sm { flex: 0 1 100px; }
     .f.grow { flex: 2 1 180px; }
     .f .label { margin: 0; font-size: 12px; }
     .add { flex: none; }
@@ -96,8 +86,6 @@ export class CompatibilityEditorComponent {
   protected readonly make = signal<number | null>(null);
   protected readonly model = signal<number | null>(null);
   protected readonly variant = signal<number | null>(null);
-  protected readonly yearFrom = signal<number | null>(null);
-  protected readonly yearTo = signal<number | null>(null);
   protected readonly notes = signal('');
   protected readonly models = signal<AdminModel[]>([]);
   protected readonly variants = signal<AdminVariant[]>([]);
@@ -142,23 +130,15 @@ export class CompatibilityEditorComponent {
   protected add(): void {
     const make = this.manufacturers().find((m) => m.id === this.make());
     if (!make) return;
-    const yf = this.yearFrom();
-    const yt = this.yearTo();
-    if (yf && yt && yt < yf) {
-      this.error.set('"Year to" must be the same as or after "Year from".');
-      return;
-    }
     const model = this.models().find((m) => m.id === this.model()) ?? null;
     const variant = this.variants().find((v) => v.id === this.variant()) ?? null;
     const row: CompatibilityRow = {
       manufacturer: { id: make.id, name: make.name },
       model: model ? { id: model.id, name: model.name } : null,
       variant: variant ? { id: variant.id, name: variant.name } : null,
-      year_from: yf,
-      year_to: yt,
       notes: this.notes().trim() || null,
     };
-    const dup = this.rows().some((r) => r.manufacturer.id === row.manufacturer.id && r.model?.id === row.model?.id && r.variant?.id === row.variant?.id && r.year_from === row.year_from && r.year_to === row.year_to);
+    const dup = this.rows().some((r) => r.manufacturer.id === row.manufacturer.id && r.model?.id === row.model?.id && r.variant?.id === row.variant?.id);
     if (dup) {
       this.error.set('That fitment is already in the list.');
       return;
@@ -166,8 +146,6 @@ export class CompatibilityEditorComponent {
     this.error.set(null);
     this.rowsChange.emit([...this.rows(), row]);
     this.variant.set(null);
-    this.yearFrom.set(null);
-    this.yearTo.set(null);
     this.notes.set('');
   }
 
@@ -181,8 +159,6 @@ export function toCompatibilityInput(rows: CompatibilityRow[]): CompatibilityInp
     vehicle_manufacturer_id: r.manufacturer.id,
     vehicle_model_id: r.model?.id ?? null,
     vehicle_variant_id: r.variant?.id ?? null,
-    year_from: r.year_from,
-    year_to: r.year_to,
     notes: r.notes,
   }));
 }

@@ -28,12 +28,13 @@ class AccountTest extends TestCase
     public function test_garage_saved_vehicles(): void
     {
         $this->actingAsCustomer();
-        $variant = VehicleVariant::factory()->create(['year_from' => 2020, 'year_to' => 2023]);
+        $variant = VehicleVariant::factory()->create();
 
-        $this->postJson($this->api('me/vehicles'), ['vehicle_variant_id' => $variant->id, 'year' => 2025])->assertStatus(422)->assertJsonValidationErrors('year');
-        $v = $this->postJson($this->api('me/vehicles'), ['vehicle_variant_id' => $variant->id, 'year' => 2022, 'nickname' => 'Weekend'])
-            ->assertCreated()->assertJsonPath('data.is_default', true)->assertJsonPath('data.variant.id', $variant->id)->json('data');
-        $this->postJson($this->api('me/vehicles'), ['vehicle_variant_id' => $variant->id, 'year' => 2022])->assertStatus(422);
+        $v = $this->postJson($this->api('me/vehicles'), ['vehicle_variant_id' => $variant->id, 'nickname' => 'Weekend'])
+            ->assertCreated()->assertJsonPath('data.is_default', true)->assertJsonPath('data.variant.id', $variant->id)
+            ->assertJsonMissingPath('data.year')->json('data');
+        // The same bike can't be saved twice.
+        $this->postJson($this->api('me/vehicles'), ['vehicle_variant_id' => $variant->id])->assertStatus(422);
         $this->getJson($this->api('me/vehicles'))->assertJsonCount(1, 'data');
         $this->getJson($this->api('me/dashboard'))->assertOk()->assertJsonPath('data.default_vehicle.id', $v['id']);
         $this->deleteJson($this->api("me/vehicles/{$v['id']}"))->assertOk();

@@ -194,9 +194,10 @@ class VehicleSeeder extends Seeder
                     ['vehicle_manufacturer_id' => $m->id, 'slug' => Str::slug($modelName)],
                     ['name' => $modelName, 'vehicle_type' => $modelType, 'body_type' => $body, 'is_active' => true],
                 );
-                foreach ($variants as [$name, $from, $to, $engine, $fuel, $trans, $cc]) {
+                // The data keeps each variant's production years for reference; the store doesn't use them.
+                foreach ($variants as [$name, , , $engine, $fuel, $trans, $cc]) {
                     $model->variants()->updateOrCreate(['name' => $name], [
-                        'year_from' => $from, 'year_to' => $to, 'engine' => $engine, 'fuel_type' => $fuel,
+                        'engine' => $engine, 'fuel_type' => $fuel,
                         'transmission' => $trans, 'displacement_cc' => $cc, 'is_active' => true,
                     ]);
                 }

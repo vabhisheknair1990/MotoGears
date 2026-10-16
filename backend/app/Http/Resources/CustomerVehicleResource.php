@@ -11,7 +11,6 @@ class CustomerVehicleResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'year' => $this->year,
             'nickname' => $this->nickname,
             'registration_number' => $this->registration_number,
             'is_default' => (bool) $this->is_default,

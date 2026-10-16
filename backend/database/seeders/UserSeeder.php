@@ -94,7 +94,6 @@ class UserSeeder extends Seeder
                 foreach (array_values(array_filter($garage)) as $j => $variant) {
                     $user->vehicles()->create([
                         'vehicle_variant_id' => $variant->id,
-                        'year' => $i === 0 ? ($j === 0 ? 2024 : 2023) : mt_rand($variant->year_from, $variant->year_to ?? (int) date('Y')),
                         'nickname' => $i === 0 ? ($j === 0 ? 'Weekend Thar' : 'Daily ride') : null,
                         'registration_number' => $i === 0 ? ($j === 0 ? 'KA 03 MX 2024' : 'KA 01 EZ 3350') : null,
                         'is_default' => $j === 0,

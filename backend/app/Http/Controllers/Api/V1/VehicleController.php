@@ -37,24 +37,10 @@ class VehicleController extends Controller
         return $this->ok(VehicleModelResource::collection($models), 'Models retrieved successfully');
     }
 
-    /** Distinct model years available for a model (derived from variant year ranges). */
-    public function years(Request $request): JsonResponse
-    {
-        $request->validate(['model_id' => ['required', 'integer', 'exists:vehicle_models,id']]);
-        $years = VehicleVariant::active()->where('vehicle_model_id', $request->model_id)->get()
-            ->flatMap(fn (VehicleVariant $v) => $v->years())->unique()->sortDesc()->values();
-
-        return $this->ok($years, 'Years retrieved successfully');
-    }
-
     public function variants(Request $request): JsonResponse
     {
-        $request->validate([
-            'model_id' => ['required', 'integer', 'exists:vehicle_models,id'],
-            'year' => ['nullable', 'integer', 'min:1950', 'max:2100'],
-        ]);
-        $variants = VehicleVariant::active()->where('vehicle_model_id', $request->model_id)->forYear($request->integer('year') ?: null)
-            ->orderBy('name')->get();
+        $request->validate(['model_id' => ['required', 'integer', 'exists:vehicle_models,id']]);
+        $variants = VehicleVariant::active()->where('vehicle_model_id', $request->model_id)->orderBy('name')->get();
 
         return $this->ok(VehicleVariantResource::collection($variants), 'Variants retrieved successfully');
     }

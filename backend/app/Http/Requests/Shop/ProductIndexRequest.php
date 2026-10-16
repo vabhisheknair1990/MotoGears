@@ -19,7 +19,6 @@ class ProductIndexRequest extends ApiFormRequest
             'brand' => ['sometimes', 'nullable'],
             'vehicle_variant' => ['sometimes', 'nullable', 'integer'],
             'vehicle_variant_id' => ['sometimes', 'nullable', 'integer'],
-            'vehicle_year' => ['sometimes', 'nullable', 'integer'],
             'vehicle_model' => ['sometimes', 'nullable', 'integer'],
             'vehicle_manufacturer' => ['sometimes', 'nullable', 'integer'],
             'vehicle_type' => ['sometimes', 'nullable', Rule::in(['car', 'motorcycle', 'universal'])],

@@ -82,11 +82,9 @@ class ProductAdminService
                 'vehicle_manufacturer_id' => (int) $r['vehicle_manufacturer_id'],
                 'vehicle_model_id' => $r['vehicle_model_id'] ?? null ?: null,
                 'vehicle_variant_id' => $r['vehicle_variant_id'] ?? null ?: null,
-                'year_from' => $r['year_from'] ?? null ?: null,
-                'year_to' => $r['year_to'] ?? null ?: null,
                 'notes' => $r['notes'] ?? null,
             ];
-        })->unique(fn ($r) => implode('|', [$r['vehicle_manufacturer_id'], $r['vehicle_model_id'], $r['vehicle_variant_id'], $r['year_from'], $r['year_to']]));
+        })->unique(fn ($r) => implode('|', [$r['vehicle_manufacturer_id'], $r['vehicle_model_id'], $r['vehicle_variant_id']]));
 
         $product->compatibilities()->delete();
         foreach ($normalised as $row) {

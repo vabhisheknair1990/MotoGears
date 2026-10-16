@@ -71,8 +71,6 @@ class ImportSchema
             self::COMPATIBILITY => [
                 'sku' => ['Product SKU', true, 'SKU of a product in the Products sheet or already in your store.', 'EXAMPLE-BRK-001', 20, null, 'text'],
                 'vehicle' => ['Vehicle', true, 'Pick from the dropdown: a whole make, a model (all variants) or one exact variant.', null, 54, 'vehicles', 'text'],
-                'year_from' => ['Year from', false, 'Optional — limit to vehicles made in/after this year.', null, 10, null, 'int'],
-                'year_to' => ['Year to', false, 'Optional — limit to vehicles made in/before this year.', null, 10, null, 'int'],
                 'notes' => ['Notes', false, 'Shown to customers, e.g. "Only for models with disc brakes".', null, 36, null, 'text'],
             ],
             self::VARIANTS => [

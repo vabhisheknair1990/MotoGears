@@ -43,7 +43,7 @@ export class CustomerService {
     return this.api.get<CustomerVehicle[]>('me/vehicles');
   }
 
-  saveVehicle(input: { vehicle_variant_id: number; year?: number | null; nickname?: string | null; registration_number?: string | null; is_default?: boolean }): Observable<CustomerVehicle> {
+  saveVehicle(input: { vehicle_variant_id: number; nickname?: string | null; registration_number?: string | null; is_default?: boolean }): Observable<CustomerVehicle> {
     return this.api.post<CustomerVehicle>('me/vehicles', input, silent()).pipe(map((r) => r.data));
   }
 

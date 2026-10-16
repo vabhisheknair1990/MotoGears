@@ -153,7 +153,7 @@ class TemplateBuilder
                     ->setFormula1($key === 'price_adjustment' ? '-9999999' : '0')->setFormula2('9999999')
                     ->setErrorStyle(DataValidation::STYLE_STOP)->setErrorTitle('Numbers only')->setError($header.' must be a number (no ₹ sign or text).');
             } elseif ($format === 'int') {
-                [$min, $max] = in_array($key, ['year_from', 'year_to'], true) ? ['1950', '2100'] : ['0', '1000000'];
+                [$min, $max] = ['0', '1000000'];
                 $v->setType(DataValidation::TYPE_WHOLE)->setOperator(DataValidation::OPERATOR_BETWEEN)->setFormula1($min)->setFormula2($max)
                     ->setErrorStyle(DataValidation::STYLE_STOP)->setErrorTitle('Whole number')->setError($header.' must be a whole number between '.$min.' and '.$max.'.');
             } else {
@@ -235,7 +235,7 @@ class TemplateBuilder
                         $this->writeRow($sheets[ImportSchema::COMPATIBILITY], ImportSchema::COMPATIBILITY, $next[ImportSchema::COMPATIBILITY]++, [
                             'sku' => $p->sku,
                             'vehicle' => $this->lookups->vehicleLabelFor($c->vehicle_manufacturer_id, $c->vehicle_model_id, $c->vehicle_variant_id),
-                            'year_from' => $c->year_from, 'year_to' => $c->year_to, 'notes' => $c->notes,
+                            'notes' => $c->notes,
                         ]);
                     }
                     foreach ($p->variants as $v) {

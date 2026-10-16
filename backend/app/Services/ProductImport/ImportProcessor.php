@@ -456,31 +456,14 @@ class ImportProcessor
 
                 continue;
             }
-            $years = [];
-            foreach (['year_from', 'year_to'] as $k) {
-                $years[$k] = null;
-                if (($v[$k] ?? null) !== null && $v[$k] !== '') {
-                    $n = $this->number($v[$k]);
-                    if ($n === null || floor($n) !== $n || $n < 1950 || $n > 2100) {
-                        $err($k, ImportSchema::header(ImportSchema::COMPATIBILITY, $k).' must be a year between 1950 and 2100.');
-                    } else {
-                        $years[$k] = (int) $n;
-                    }
-                }
-            }
-            if ($years['year_from'] && $years['year_to'] && $years['year_from'] > $years['year_to']) {
-                $err('year_to', '"Year to" cannot be earlier than "Year from".');
-            }
             $i = count($out);
             $out[] = [
                 'vehicle_manufacturer_id' => $vehicle['manufacturer'],
                 'vehicle_model_id' => $vehicle['model'],
                 'vehicle_variant_id' => $vehicle['variant'],
-                'year_from' => $years['year_from'],
-                'year_to' => $years['year_to'],
                 'notes' => isset($v['notes']) ? (string) $v['notes'] : null,
             ];
-            foreach (['vehicle_manufacturer_id' => 'vehicle', 'vehicle_model_id' => 'vehicle', 'vehicle_variant_id' => 'vehicle', 'year_from' => 'year_from', 'year_to' => 'year_to', 'notes' => 'notes'] as $field => $col) {
+            foreach (['vehicle_manufacturer_id' => 'vehicle', 'vehicle_model_id' => 'vehicle', 'vehicle_variant_id' => 'vehicle', 'notes' => 'notes'] as $field => $col) {
                 $locator["compatibilities.{$i}.{$field}"] = [ImportSchema::COMPATIBILITY, $r, $col];
             }
         }
@@ -583,7 +566,7 @@ class ImportProcessor
         }
         $names += ['category_id' => 'Category', 'brand_id' => 'Brand', 'attribute_value_ids' => 'Filters', 'initial_stock' => 'Stock on hand',
             'compatibilities.*.vehicle_manufacturer_id' => 'Vehicle', 'compatibilities.*.vehicle_model_id' => 'Vehicle', 'compatibilities.*.vehicle_variant_id' => 'Vehicle',
-            'compatibilities.*.year_from' => 'Year from', 'compatibilities.*.year_to' => 'Year to', 'compatibilities.*.notes' => 'Notes',
+            'compatibilities.*.notes' => 'Notes',
             'variants.*.sku' => 'Variant SKU', 'variants.*.name' => 'Variant name', 'variants.*.price_adjustment' => 'Price difference',
             'faqs.*.question' => 'Question', 'faqs.*.answer' => 'Answer', 'specifications.*.label' => 'Specification label', 'specifications.*.value' => 'Specification value',
             'whats_included.*' => "What's included item", 'tags.*' => 'Tag'];

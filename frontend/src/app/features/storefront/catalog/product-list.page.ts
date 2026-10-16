@@ -158,7 +158,6 @@ export class ProductListPage {
       featured: q.get('featured') === '1' || null,
       attributes: active.attributes,
       vehicle_variant: this.filteringByVehicle() ? this.vehicle.variantId() : null,
-      vehicle_year: this.filteringByVehicle() ? this.vehicle.selected()?.year ?? null : null,
       with_facets: true,
     };
   }

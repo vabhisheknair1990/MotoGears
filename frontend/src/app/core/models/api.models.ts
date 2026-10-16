@@ -55,8 +55,6 @@ export interface Compatibility {
   manufacturer: Ref | null;
   model: { id: number; name: string } | null;
   variant: { id: number; name: string; fuel_type: string | null; transmission: string | null; engine: string | null } | null;
-  year_from: number | null;
-  year_to: number | null;
   notes: string | null;
   label: string;
 }
@@ -136,7 +134,7 @@ export interface VehicleModel {
   body_type: string | null; image: string | null; is_active: boolean; variants_count?: number; manufacturer?: Ref;
 }
 export interface VehicleVariant {
-  id: number; vehicle_model_id: number; name: string; year_from: number; year_to: number | null; year_range: string;
+  id: number; vehicle_model_id: number; name: string;
   engine: string | null; fuel_type: string | null; transmission: string | null; displacement_cc: number | null; is_active: boolean;
   model?: { id: number; name: string; vehicle_type: string; manufacturer: Ref | null };
   full_name?: string;
@@ -148,7 +146,6 @@ export interface SelectedVehicle {
   manufacturerName: string;
   modelId: number;
   modelName: string;
-  year: number | null;
   variantId: number;
   variantName: string;
   vehicleType?: string;
@@ -380,7 +377,7 @@ export interface User {
 export interface AuthPayload { token: string; token_type: 'Bearer'; expires_at: string; user: User }
 
 export interface CustomerVehicle {
-  id: number; year: number | null; nickname: string | null; registration_number: string | null; is_default: boolean;
+  id: number; nickname: string | null; registration_number: string | null; is_default: boolean;
   variant: VehicleVariant; created_at: string;
 }
 

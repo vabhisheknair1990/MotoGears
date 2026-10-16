@@ -31,7 +31,7 @@ import { VehicleSelectorComponent } from '../../../shared/components/vehicle-sel
               <div class="grow">
                 <strong>{{ v.nickname || v.variant.full_name }}</strong>
                 <span class="text-sm text-muted">{{ v.variant.full_name }}</span>
-                <span class="text-xs text-muted">{{ v.year ?? v.variant.year_range }} · {{ v.variant.fuel_type }} · {{ v.variant.transmission }}@if (v.registration_number) { · {{ v.registration_number }} }</span>
+                <span class="text-xs text-muted">{{ v.variant.fuel_type }}@if (v.variant.transmission) { · {{ v.variant.transmission }} }@if (v.registration_number) { · {{ v.registration_number }} }</span>
               </div>
               @if (v.is_default) { <span class="badge badge-info">Default</span> }
             </div>
@@ -72,7 +72,7 @@ export class GaragePage {
   }
 
   add(v: SelectedVehicle): void {
-    this.customer.saveVehicle({ vehicle_variant_id: v.variantId, year: v.year }).subscribe({
+    this.customer.saveVehicle({ vehicle_variant_id: v.variantId }).subscribe({
       next: () => { this.toast.success(`${v.manufacturerName} ${v.modelName} added to your garage`); this.load(); },
       error: (e) => this.toast.error(errorMessage(e)),
     });
@@ -87,7 +87,7 @@ export class GaragePage {
     if (m?.manufacturer) {
       this.store.select({
         manufacturerId: m.manufacturer.id, manufacturerName: m.manufacturer.name, modelId: m.id, modelName: m.name,
-        year: v.year, variantId: v.variant.id, variantName: v.variant.name, vehicleType: m.vehicle_type,
+        variantId: v.variant.id, variantName: v.variant.name, vehicleType: m.vehicle_type,
       });
     }
     void this.router.navigate(['/vehicles'], { queryParams: { variant: v.variant.id } });

@@ -9,9 +9,9 @@ class CustomerVehicle extends Model
 {
     protected $attributes = ['is_default' => false];
 
-    protected $fillable = ['user_id', 'vehicle_variant_id', 'year', 'nickname', 'registration_number', 'is_default'];
+    protected $fillable = ['user_id', 'vehicle_variant_id', 'nickname', 'registration_number', 'is_default'];
 
-    protected $casts = ['is_default' => 'boolean', 'year' => 'integer'];
+    protected $casts = ['is_default' => 'boolean'];
 
     public function user(): BelongsTo
     {

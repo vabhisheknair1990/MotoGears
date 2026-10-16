@@ -17,8 +17,6 @@ class CompatibilityResource extends JsonResource
                 'id' => $this->variant->id, 'name' => $this->variant->name, 'fuel_type' => $this->variant->fuel_type,
                 'transmission' => $this->variant->transmission, 'engine' => $this->variant->engine,
             ] : null,
-            'year_from' => $this->year_from,
-            'year_to' => $this->year_to,
             'notes' => $this->notes,
             'label' => $this->label(),
         ];

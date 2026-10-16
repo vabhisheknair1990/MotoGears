@@ -10,7 +10,6 @@ export interface ProductFilters {
   category?: string | null;
   brand?: string | string[] | null;
   vehicle_variant?: number | null;
-  vehicle_year?: number | null;
   vehicle_type?: string | null;
   min_price?: number | null;
   max_price?: number | null;
@@ -26,7 +25,7 @@ export interface ProductFilters {
 export interface ProductListMeta {
   sort: string | null;
   facets?: Facets;
-  vehicle?: { id: number; name: string; year_range: string };
+  vehicle?: { id: number; name: string };
   query?: string;
 }
 
@@ -34,7 +33,7 @@ export interface CompatibilityInfo {
   is_universal: boolean;
   vehicle_type: string;
   vehicles: Compatibility[];
-  grouped: { manufacturer: string; models: { model: string; variants: string[]; years: string[] }[] }[];
+  grouped: { manufacturer: string; models: { model: string; variants: string[] }[] }[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -69,8 +68,8 @@ export class ProductService {
     return this.api.get<CompatibilityInfo>(`products/${productId}/compatibility`);
   }
 
-  checkFitment(productId: number, variantId: number, year?: number | null): Observable<{ fits: boolean; vehicle: string; message: string }> {
-    return this.api.get(`products/${productId}/check-compatibility`, { vehicle_variant_id: variantId, year: year ?? undefined });
+  checkFitment(productId: number, variantId: number): Observable<{ fits: boolean; vehicle: string; message: string }> {
+    return this.api.get(`products/${productId}/check-compatibility`, { vehicle_variant_id: variantId });
   }
 
   getRelated(productId: number): Observable<ProductCard[]> {

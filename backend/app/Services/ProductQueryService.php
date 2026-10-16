@@ -64,7 +64,7 @@ class ProductQueryService
         }
         if ($has('vehicle_variant')) {
             $variant = VehicleVariant::with('model')->find($f['vehicle_variant']);
-            $variant ? $q->compatibleWith($variant, isset($f['vehicle_year']) ? (int) $f['vehicle_year'] : null) : $q->whereRaw('1 = 0');
+            $variant ? $q->compatibleWith($variant) : $q->whereRaw('1 = 0');
         } elseif ($has('vehicle_model')) {
             $modelId = (int) $f['vehicle_model'];
             $q->where(fn ($w) => $w->where('products.is_universal', true)->orWhereHas('compatibilities', fn ($c) => $c->where('vehicle_model_id', $modelId)

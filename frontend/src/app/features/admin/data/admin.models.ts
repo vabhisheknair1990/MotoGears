@@ -53,12 +53,12 @@ export interface CompatibilityRow {
   manufacturer: { id: number; name: string; slug?: string };
   model: { id: number; name: string } | null;
   variant: { id: number; name: string } | null;
-  year_from: number | null; year_to: number | null; notes: string | null; label?: string;
+  notes: string | null; label?: string;
 }
 
 export interface CompatibilityInput {
   vehicle_manufacturer_id: number; vehicle_model_id: number | null; vehicle_variant_id: number | null;
-  year_from: number | null; year_to: number | null; notes: string | null;
+  notes: string | null;
 }
 
 export interface AdminCategory {
@@ -75,7 +75,7 @@ export interface AdminBrand {
 export interface AdminManufacturer { id: number; name: string; slug: string; logo: string | null; vehicle_type: string; country: string | null; is_active: boolean; sort_order: number; models_count: number }
 export interface AdminModel { id: number; vehicle_manufacturer_id: number; name: string; slug: string; vehicle_type: string; body_type: string | null; is_active: boolean; variants_count: number; manufacturer: { id: number; name: string } }
 export interface AdminVariant {
-  id: number; vehicle_model_id: number; name: string; year_from: number; year_to: number | null; year_range: string; engine: string | null;
+  id: number; vehicle_model_id: number; name: string; engine: string | null;
   fuel_type: string | null; transmission: string | null; displacement_cc: number | null; is_active: boolean; full_name: string;
   model: { id: number; name: string; vehicle_type: string; manufacturer: { id: number; name: string } };
 }

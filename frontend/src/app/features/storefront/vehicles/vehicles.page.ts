@@ -27,7 +27,7 @@ import { errorMessage } from '../../../core/utils/http-errors';
       <div class="container">
         <app-breadcrumb [items]="[{ label: 'Home', link: '/' }, { label: 'Shop by vehicle' }]" />
         <h1>Shop by vehicle</h1>
-        <p class="lead">Choose your make, model, year and variant — we'll show only the parts that fit.</p>
+        <p class="lead">Choose your make, model and variant — we'll show only the parts that fit.</p>
         <app-vehicle-selector layout="inline" buttonLabel="SHOW PARTS" (selected)="onSelected($event)" />
         @if (garage().length) {
           <div class="garage">
@@ -50,7 +50,6 @@ import { errorMessage } from '../../../core/utils/http-errors';
             <span class="eyebrow">Your vehicle</span>
             <h2>{{ v.full_name }}</h2>
             <div class="specs">
-              <span><app-icon name="calendar" [size]="14" /> {{ store.selected()?.year ?? v.year_range }}</span>
               @if (v.engine) { <span><app-icon name="gauge" [size]="14" /> {{ v.engine }}</span> }
               @if (v.fuel_type) { <span><app-icon name="flame" [size]="14" /> {{ v.fuel_type }}</span> }
               @if (v.transmission) { <span><app-icon name="settings" [size]="14" /> {{ v.transmission }}</span> }
@@ -126,7 +125,7 @@ export class VehiclesPage {
   protected readonly inGarage = computed(() => this.garage().some((g) => g.variant.id === this.store.variantId()));
 
   constructor() {
-    inject(SeoService).set({ title: 'Shop by vehicle', description: 'Find parts that fit your motorcycle — select make, model, year and variant.' });
+    inject(SeoService).set({ title: 'Shop by vehicle', description: 'Find parts that fit your motorcycle — select make, model and variant.' });
     if (this.auth.isLoggedIn()) {
       this.customer.getVehicles().pipe(catchError(() => of([])), takeUntilDestroyed()).subscribe((g) => this.garage.set(g));
     }
@@ -142,14 +141,14 @@ export class VehiclesPage {
       if (v && v.model?.manufacturer && this.store.variantId() !== v.id) {
         this.store.select({
           manufacturerId: v.model.manufacturer.id, manufacturerName: v.model.manufacturer.name, modelId: v.model.id, modelName: v.model.name,
-          year: this.store.selected()?.variantId === v.id ? this.store.selected()!.year : null, variantId: v.id, variantName: v.name, vehicleType: v.model.vehicle_type,
+          variantId: v.id, variantName: v.name, vehicleType: v.model.vehicle_type,
         });
       }
     });
     combineLatest([toObservable(this.store.variantId), toObservable(this.page), toObservable(this.category)]).pipe(
       tap(([id]) => this.loading.set(!!id)),
       switchMap(([id, page, category]) => (id
-        ? this.products.getCompatibleProducts(id, { page, per_page: 20, category, vehicle_year: this.store.selected()?.year ?? null, with_facets: true, sort: 'popular' }).pipe(catchError(() => of(null)))
+        ? this.products.getCompatibleProducts(id, { page, per_page: 20, category, with_facets: true, sort: 'popular' }).pipe(catchError(() => of(null)))
         : of(null))),
       takeUntilDestroyed(),
     ).subscribe((p) => {
@@ -179,7 +178,7 @@ export class VehiclesPage {
     const v = this.store.selected();
     if (!v) return;
     this.saving.set(true);
-    this.customer.saveVehicle({ vehicle_variant_id: v.variantId, year: v.year }).subscribe({
+    this.customer.saveVehicle({ vehicle_variant_id: v.variantId }).subscribe({
       next: (saved) => { this.garage.update((g) => [saved, ...g]); this.saving.set(false); this.toast.success('Vehicle saved to your garage'); },
       error: (e) => { this.saving.set(false); this.toast.error(errorMessage(e)); },
     });

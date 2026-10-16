@@ -30,7 +30,7 @@ class ProductController extends Controller
             $extra['facets'] = $this->products->facets($filters);
         }
         if (! empty($filters['vehicle_variant']) && ($v = VehicleVariant::with('model.manufacturer')->find($filters['vehicle_variant']))) {
-            $extra['vehicle'] = ['id' => $v->id, 'name' => $v->fullName(), 'year_range' => $v->yearRange()];
+            $extra['vehicle'] = ['id' => $v->id, 'name' => $v->fullName()];
         }
 
         return $this->paginated($page, ProductCardResource::class, 'Products retrieved successfully', $extra);
@@ -57,7 +57,7 @@ class ProductController extends Controller
             $variant = VehicleVariant::with('model.manufacturer')->find($variantId);
             $data['fits_selected_vehicle'] = $variant ? [
                 'vehicle' => $variant->fullName(),
-                'fits' => $product->fitsVariant($variant, $request->integer('vehicle_year') ?: null),
+                'fits' => $product->fitsVariant($variant),
             ] : null;
         }
 
@@ -86,7 +86,6 @@ class ProductController extends Controller
                 'models' => $g->groupBy(fn ($c) => $c->model?->name ?? 'All models')->map(fn ($m, $model) => [
                     'model' => $model,
                     'variants' => $m->map(fn ($c) => $c->variant?->name ?? 'All variants')->unique()->values(),
-                    'years' => $m->map(fn ($c) => ($c->year_from ?? '').'–'.($c->year_to ?? 'present'))->unique()->values(),
                 ])->values(),
             ])->values(),
         ], 'Compatibility retrieved successfully');
@@ -94,9 +93,9 @@ class ProductController extends Controller
 
     public function checkCompatibility(Request $request, Product $product): JsonResponse
     {
-        $request->validate(['vehicle_variant_id' => ['required', 'integer', 'exists:vehicle_variants,id'], 'year' => ['nullable', 'integer']]);
+        $request->validate(['vehicle_variant_id' => ['required', 'integer', 'exists:vehicle_variants,id']]);
         $variant = VehicleVariant::with('model.manufacturer')->findOrFail($request->vehicle_variant_id);
-        $fits = $product->fitsVariant($variant, $request->integer('year') ?: null);
+        $fits = $product->fitsVariant($variant);
 
         return $this->ok([
             'fits' => $fits,

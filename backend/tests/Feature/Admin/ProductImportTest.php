@@ -49,7 +49,7 @@ class ProductImportTest extends TestCase
         $this->bosch = Brand::factory()->create(['name' => 'Bosch']);
         $make = VehicleManufacturer::factory()->create(['name' => 'Maruti Suzuki']);
         $model = VehicleModel::factory()->create(['vehicle_manufacturer_id' => $make->id, 'name' => 'Swift']);
-        $this->variant = VehicleVariant::factory()->create(['vehicle_model_id' => $model->id, 'name' => 'VXi 1.2', 'year_from' => 2018, 'year_to' => 2024]);
+        $this->variant = VehicleVariant::factory()->create(['vehicle_model_id' => $model->id, 'name' => 'VXi 1.2']);
         $position = Attribute::create(['name' => 'Position', 'slug' => 'position']);
         AttributeValue::create(['attribute_id' => $position->id, 'value' => 'Front', 'slug' => 'front']);
 
@@ -69,7 +69,7 @@ class ProductImportTest extends TestCase
         $column = fn (int $i) => array_filter(array_column($lists, $i));
         $this->assertContains('Car Parts > Brakes', $column(0));
         $this->assertContains('Bosch', $column(1));
-        $this->assertContains('Maruti Suzuki > Swift > VXi 1.2 (2018-2024)', $column(2));
+        $this->assertContains('Maruti Suzuki > Swift > VXi 1.2', $column(2));
         $this->assertContains('Position: Front', $column(3));
 
         $products = $book->getSheetByName('Products');
@@ -104,6 +104,7 @@ class ProductImportTest extends TestCase
                 ['old-001', '', '', '', '', '', 850, '', 40, '', '', '', 'CLEAR', ''],
             ],
             'Compatibility' => [
+                // An older template: its Year columns are ignored and the year in the vehicle label still matches.
                 ['Product SKU *', 'Vehicle *', 'Year from', 'Year to', 'Notes'],
                 ['NEW-001', 'Maruti Suzuki > Swift > VXi 1.2 (2018-2024)', 2019, '', 'Disc brake models'],
                 ['NEW-001', 'maruti suzuki › swift', '', '', ''],
@@ -144,8 +145,8 @@ class ProductImportTest extends TestCase
         $this->assertSame(['brakes', 'ceramic'], $p->tags);
         $this->assertSame(['Rear'], $p->attributeValues->pluck('value')->all());
         $this->assertCount(2, $p->compatibilities);
-        $this->assertSame($this->variant->id, $p->compatibilities->firstWhere('year_from', 2019)->vehicle_variant_id);
-        $this->assertNull($p->compatibilities->firstWhere('year_from', null)->vehicle_variant_id); // model-wide row
+        $this->assertSame('Disc brake models', $p->compatibilities->firstWhere('vehicle_variant_id', $this->variant->id)->notes);
+        $this->assertNotNull($p->compatibilities->firstWhere('vehicle_variant_id', null)); // model-wide row
         $this->assertSame('NEW-001-RED', $p->variants->first()->sku);
         $this->assertSame(['Colour' => 'Red'], $p->variants->first()->options);
         $this->assertSame('Does it fit a 2019 Swift?', $p->faqs->first()->question);
@@ -178,9 +179,9 @@ class ProductImportTest extends TestCase
                 ['', 'No SKU', 'Car Parts > Brakes', 'Bosch', 'Car', 100, 90, 18, '', '', '', '', '', ''],
             ],
             'Compatibility' => [
-                ['Product SKU *', 'Vehicle *', 'Year from', 'Year to', 'Notes'],
-                ['GHOST-9', 'Maruti Suzuki (all models)', '', '', ''],
-                ['GOOD-1', 'Tata > Nexon', '', '', ''],
+                ['Product SKU *', 'Vehicle *', 'Notes'],
+                ['GHOST-9', 'Maruti Suzuki (all models)', ''],
+                ['GOOD-1', 'Tata > Nexon', ''],
             ],
         ]);
 

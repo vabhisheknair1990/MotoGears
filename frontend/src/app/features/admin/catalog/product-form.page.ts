@@ -181,7 +181,7 @@ export class ProductFormPage {
     this.tags.set([...(p.tags ?? [])]);
     this.included.set([...(p.whats_included ?? [])]);
     this.attributeIds.set(new Set(p.attribute_value_ids ?? []));
-    this.compat.set((p.compatibility ?? []).map((c) => ({ id: c.id, manufacturer: { id: c.manufacturer?.id ?? 0, name: c.manufacturer?.name ?? '' }, model: c.model, variant: c.variant ? { id: c.variant.id, name: c.variant.name } : null, year_from: c.year_from, year_to: c.year_to, notes: c.notes })));
+    this.compat.set((p.compatibility ?? []).map((c) => ({ id: c.id, manufacturer: { id: c.manufacturer?.id ?? 0, name: c.manufacturer?.name ?? '' }, model: c.model, variant: c.variant ? { id: c.variant.id, name: c.variant.name } : null, notes: c.notes })));
     this.images.set(p.images.map((i) => ({ id: i.id, url: i.url, alt: i.alt, is_primary: i.is_primary })));
     this.form.markAsPristine();
     this.extrasDirty = false;

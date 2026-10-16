@@ -140,14 +140,14 @@ class ImportLookups
 
     public static function variantLabel(string $make, string $model, VehicleVariant $v): string
     {
-        return $make.self::SEP.$model.self::SEP.$v->name.' ('.$v->year_from.'-'.($v->year_to ?? 'present').')';
+        return $make.self::SEP.$model.self::SEP.$v->name;
     }
 
     private function loadVehicles(): void
     {
         $makes = VehicleManufacturer::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']);
         $models = VehicleModel::query()->orderBy('name')->get(['id', 'vehicle_manufacturer_id', 'name', 'slug'])->groupBy('vehicle_manufacturer_id');
-        $variants = VehicleVariant::query()->orderBy('name')->orderBy('year_from')->get()->groupBy('vehicle_model_id');
+        $variants = VehicleVariant::query()->orderBy('name')->get()->groupBy('vehicle_model_id');
 
         $short = [];
         foreach ($makes as $make) {
@@ -162,7 +162,7 @@ class ImportLookups
                 }
             }
         }
-        // Also accept labels typed without the "(all models)" / year suffix when they are unambiguous.
+        // Also accept labels typed without the "(all models)" suffix when they are unambiguous.
         $counts = array_count_values(array_column($short, 0));
         foreach ($short as [$key, $make, $model, $variant]) {
             if ($counts[$key] === 1) {
@@ -181,8 +181,14 @@ class ImportLookups
     public function vehicle(mixed $value): ?array
     {
         $v = trim((string) $value);
+        if ($v === '') {
+            return null;
+        }
 
-        return $v === '' ? null : ($this->vehicleIndex[self::norm($v)] ?? null);
+        // Older templates labelled variants with their years, e.g. "… › Signals (2021-present)".
+        return $this->vehicleIndex[self::norm($v)]
+            ?? $this->vehicleIndex[self::norm((string) preg_replace('/\s*\(\d{4}\s*[-–]\s*(\d{4}|present)\)$/iu', '', $v))]
+            ?? null;
     }
 
     public function vehicleLabelFor(?int $make, ?int $model, ?int $variant): ?string

@@ -35,7 +35,7 @@ import { AppDatePipe, InrPipe } from '../../../shared/pipes/inr.pipe';
           <div class="card-body">
             @if (d.default_vehicle; as v) {
               <div class="veh"><app-icon [name]="v.variant.model?.vehicle_type === 'motorcycle' ? 'bike' : 'car'" [size]="30" />
-                <div><strong>{{ v.nickname || v.variant.full_name }}</strong><span class="text-sm text-muted">{{ v.variant.full_name }} · {{ v.year ?? v.variant.year_range }}</span></div></div>
+                <div><strong>{{ v.nickname || v.variant.full_name }}</strong><span class="text-sm text-muted">{{ v.variant.full_name }}@if (v.variant.fuel_type) { · {{ v.variant.fuel_type }} }</span></div></div>
               <a class="btn btn-primary btn-block mt-16" routerLink="/vehicles" [queryParams]="{ variant: v.variant.id }">Shop parts for this vehicle</a>
             } @else {
               <p class="text-muted">Save your vehicle to get personalised part recommendations.</p>

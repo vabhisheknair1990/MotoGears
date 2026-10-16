@@ -23,7 +23,7 @@ class CustomerVehicleController extends Controller
     {
         $user = $request->user();
         $data = $request->validated();
-        if ($user->vehicles()->where('vehicle_variant_id', $data['vehicle_variant_id'])->where('year', $data['year'] ?? null)->exists()) {
+        if ($user->vehicles()->where('vehicle_variant_id', $data['vehicle_variant_id'])->exists()) {
             return response()->json(['success' => false, 'message' => 'This vehicle is already in your garage.'], 422);
         }
         $vehicle = DB::transaction(function () use ($user, $data) {

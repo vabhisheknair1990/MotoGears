@@ -31,7 +31,7 @@ class CatalogAdminTest extends TestCase
             'mrp' => 6999, 'price' => 5499, 'cost_price' => 3500, 'tax_rate' => 18, 'vehicle_type' => 'car',
             'specifications' => [['label' => 'Power', 'value' => '12W']], 'whats_included' => ['2 lamps'], 'tags' => ['fog'],
             'initial_stock' => 25, 'low_stock_threshold' => 4,
-            'compatibilities' => [['vehicle_manufacturer_id' => $variant->model->vehicle_manufacturer_id, 'vehicle_variant_id' => $variant->id, 'year_from' => 2021]],
+            'compatibilities' => [['vehicle_manufacturer_id' => $variant->model->vehicle_manufacturer_id, 'vehicle_variant_id' => $variant->id]],
             'faqs' => [['question' => 'Waterproof?', 'answer' => 'Yes, IP67.']],
         ])->assertCreated()
             ->assertJsonPath('data.sku', 'HL-FOG-01')
@@ -115,14 +115,13 @@ class CatalogAdminTest extends TestCase
         $model = $this->postJson($this->api('admin/vehicles/models'), ['vehicle_manufacturer_id' => $m['id'], 'name' => 'Thar', 'vehicle_type' => 'car'])->assertCreated()->json('data');
         $this->postJson($this->api('admin/vehicles/models'), ['vehicle_manufacturer_id' => $m['id'], 'name' => 'Thar', 'vehicle_type' => 'car'])->assertStatus(422);
         $v = $this->postJson($this->api('admin/vehicles/variants'), [
-            'vehicle_model_id' => $model['id'], 'name' => '2.0 Petrol AT', 'year_from' => 2020, 'fuel_type' => 'Petrol', 'transmission' => 'AT', 'displacement_cc' => 1997,
-        ])->assertCreated()->assertJsonPath('data.year_range', '2020–present')->json('data');
-        $this->postJson($this->api('admin/vehicles/variants'), ['vehicle_model_id' => $model['id'], 'name' => 'X', 'year_from' => 2020, 'year_to' => 2019])->assertStatus(422);
+            'vehicle_model_id' => $model['id'], 'name' => '2.0 Petrol AT', 'fuel_type' => 'Petrol', 'transmission' => 'AT', 'displacement_cc' => 1997,
+        ])->assertCreated()->assertJsonPath('data.name', '2.0 Petrol AT')->assertJsonMissingPath('data.year_from')->json('data');
 
         $this->getJson($this->api("admin/vehicles/variants?model_id={$model['id']}"))->assertJsonCount(1, 'data');
         $this->getJson($this->api("vehicles/variants?model_id={$model['id']}"))->assertJsonPath('data.0.id', $v['id']);
 
-        $this->putJson($this->api("admin/vehicles/variants/{$v['id']}"), ['year_to' => 2024])->assertOk()->assertJsonPath('data.year_to', 2024);
+        $this->putJson($this->api("admin/vehicles/variants/{$v['id']}"), ['engine' => '2.0 mStallion'])->assertOk()->assertJsonPath('data.engine', '2.0 mStallion');
         $this->deleteJson($this->api("admin/vehicles/variants/{$v['id']}"))->assertOk();
         $this->deleteJson($this->api("admin/vehicles/models/{$model['id']}"))->assertOk();
         $this->deleteJson($this->api("admin/vehicles/manufacturers/{$m['id']}"))->assertOk();

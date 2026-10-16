@@ -106,27 +106,20 @@ class Product extends Model
 
     /**
      * Products that fit the given vehicle variant. A compatibility row matches when it names the
-     * variant exactly, or names the model/manufacturer with no narrower constraint and an
-     * overlapping year range. Universal products always match.
+     * variant exactly, or names the model/manufacturer with no narrower constraint. Universal
+     * products always match.
      */
-    public function scopeCompatibleWith(Builder $q, VehicleVariant $variant, ?int $year = null): Builder
+    public function scopeCompatibleWith(Builder $q, VehicleVariant $variant): Builder
     {
         $variant->loadMissing('model');
-        $from = $year ?? $variant->year_from;
-        $to = $year ?? ($variant->year_to ?? (int) date('Y'));
-
         $type = $variant->model->vehicle_type;
 
-        return $q->where(function (Builder $outer) use ($variant, $from, $to, $type) {
+        return $q->where(function (Builder $outer) use ($variant, $type) {
             $outer->where(fn (Builder $u) => $u->where('products.is_universal', true)->whereIn('products.vehicle_type', [$type, 'universal']))
-                ->orWhereHas('compatibilities', function (Builder $c) use ($variant, $from, $to) {
-                    $c->where(function (Builder $w) use ($variant) {
-                        $w->where('vehicle_variant_id', $variant->id)
-                            ->orWhere(fn ($m) => $m->whereNull('vehicle_variant_id')->where('vehicle_model_id', $variant->vehicle_model_id))
-                            ->orWhere(fn ($m) => $m->whereNull('vehicle_model_id')->where('vehicle_manufacturer_id', $variant->model->vehicle_manufacturer_id));
-                    })
-                        ->where(fn ($y) => $y->whereNull('year_from')->orWhere('year_from', '<=', $to))
-                        ->where(fn ($y) => $y->whereNull('year_to')->orWhere('year_to', '>=', $from));
+                ->orWhereHas('compatibilities', function (Builder $c) use ($variant) {
+                    $c->where('vehicle_variant_id', $variant->id)
+                        ->orWhere(fn ($m) => $m->whereNull('vehicle_variant_id')->where('vehicle_model_id', $variant->vehicle_model_id))
+                        ->orWhere(fn ($m) => $m->whereNull('vehicle_model_id')->where('vehicle_manufacturer_id', $variant->model->vehicle_manufacturer_id));
                 });
         });
     }
@@ -154,9 +147,9 @@ class Product extends Model
         return $this->is_active && ($this->inventory?->canFulfil($qty) ?? false);
     }
 
-    public function fitsVariant(VehicleVariant $variant, ?int $year = null): bool
+    public function fitsVariant(VehicleVariant $variant): bool
     {
-        return static::whereKey($this->id)->compatibleWith($variant, $year)->exists();
+        return static::whereKey($this->id)->compatibleWith($variant)->exists();
     }
 
     public function refreshRating(): void

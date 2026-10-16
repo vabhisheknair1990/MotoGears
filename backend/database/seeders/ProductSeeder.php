@@ -136,31 +136,26 @@ class ProductSeeder extends Seeder
         }
     }
 
+    /** Fitment rows are make / model / variant only — the store doesn't use model years. */
     private function addFitment(Product $product, $manufacturers, string $make, ?string $modelName, ?string $fuel, ?int $yFrom, ?int $yTo, ?string $transmission): void
     {
         $m = $manufacturers[$make];
         if (! $modelName) {
-            $product->compatibilities()->create(['vehicle_manufacturer_id' => $m->id, 'year_from' => $yFrom, 'year_to' => $yTo]);
+            $product->compatibilities()->create(['vehicle_manufacturer_id' => $m->id]);
 
             return;
         }
         $model = $m->models->firstWhere('name', $modelName) ?? throw new \RuntimeException("Unknown model {$make} {$modelName}");
-        if (! $fuel && ! $transmission && ! $yFrom) {
-            $from = $model->variants->min('year_from');
-            $to = $model->variants->contains(fn ($v) => $v->year_to === null) ? null : $model->variants->max('year_to');
-            $product->compatibilities()->create(['vehicle_manufacturer_id' => $m->id, 'vehicle_model_id' => $model->id, 'year_from' => $from, 'year_to' => $to]);
+        if (! $fuel && ! $transmission) {
+            $product->compatibilities()->create(['vehicle_manufacturer_id' => $m->id, 'vehicle_model_id' => $model->id]);
 
             return;
         }
         $variants = $model->variants
             ->when($fuel, fn ($c) => $c->where('fuel_type', $fuel))
-            ->when($transmission, fn ($c) => $c->where('transmission', $transmission))
-            ->when($yFrom, fn ($c) => $c->filter(fn ($v) => ($v->year_to ?? 9999) >= $yFrom));
+            ->when($transmission, fn ($c) => $c->where('transmission', $transmission));
         foreach ($variants as $v) {
-            $product->compatibilities()->create([
-                'vehicle_manufacturer_id' => $m->id, 'vehicle_model_id' => $model->id, 'vehicle_variant_id' => $v->id,
-                'year_from' => max($v->year_from, $yFrom ?? 0), 'year_to' => $v->year_to,
-            ]);
+            $product->compatibilities()->create(['vehicle_manufacturer_id' => $m->id, 'vehicle_model_id' => $model->id, 'vehicle_variant_id' => $v->id]);
         }
     }
 

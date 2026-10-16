@@ -170,7 +170,7 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
   variants: {
     key: 'variants',
     title: 'Vehicle variants',
-    subtitle: 'Engine / year / transmission variants used for exact fitment.',
+    subtitle: 'Engine / transmission variants used for exact fitment.',
     singular: 'Variant',
     resource: 'vehicles/variants',
     paginated: false,
@@ -186,7 +186,6 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
     },
     columns: [
       { key: 'name', label: 'Variant', type: 'strong', sub: (r) => `${r['model']?.manufacturer?.name ?? ''} ${r['model']?.name ?? ''}` },
-      { key: 'year_range', label: 'Years' },
       { key: 'engine', label: 'Engine', hideMobile: true },
       { key: 'fuel_type', label: 'Fuel', hideMobile: true },
       { key: 'transmission', label: 'Gearbox', hideMobile: true },
@@ -196,8 +195,6 @@ export const CRUD_CONFIGS: Record<string, CrudConfig> = {
       { key: 'vehicle_model_id', label: 'Model', type: 'select', required: true, options: (ctx) => ctx.async['models'] ?? [], full: true },
       { key: 'name', label: 'Variant name', type: 'text', required: true, maxLength: 120, placeholder: 'e.g. 1.2 VXi' },
       { key: 'engine', label: 'Engine', type: 'text', maxLength: 100, placeholder: 'e.g. 1.2L K-Series' },
-      { key: 'year_from', label: 'Year from', type: 'number', required: true, min: 1950, max: new Date().getFullYear() + 2 },
-      { key: 'year_to', label: 'Year to', type: 'number', min: 1950, max: new Date().getFullYear() + 2, hint: 'Leave blank if still in production.' },
       { key: 'fuel_type', label: 'Fuel', type: 'select', options: (ctx) => (ctx.lookups?.fuel_types ?? []).map((f) => ({ value: f, label: f })) },
       { key: 'transmission', label: 'Transmission', type: 'select', options: (ctx) => (ctx.lookups?.transmissions ?? []).map((f) => ({ value: f, label: f })) },
       { key: 'displacement_cc', label: 'Displacement (cc)', type: 'number', min: 0, max: 10000 },

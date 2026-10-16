@@ -7,7 +7,7 @@ import { CatalogScopeService } from '../../core/services/catalog-scope.service';
 import { IconComponent } from './icon.component';
 
 /**
- * Make → Model → Year → Variant dependent dropdowns. Every list is loaded from the API as the
+ * Make → Model → Variant dependent dropdowns. Every list is loaded from the API as the
  * previous choice is made. Emits the chosen vehicle and (optionally) stores it as "My vehicle".
  */
 @Component({
@@ -38,14 +38,7 @@ import { IconComponent } from './icon.component';
         </label>
         <label class="f">
           <span class="step">3</span>
-          <select class="select" aria-label="Year" [disabled]="!modelId()" (change)="onYear($any($event.target).value)">
-            <option value="">Select year</option>
-            @for (y of years(); track y) { <option [value]="y" [selected]="y === year()">{{ y }}</option> }
-          </select>
-        </label>
-        <label class="f">
-          <span class="step">4</span>
-          <select class="select" aria-label="Variant" [disabled]="!year()" (change)="variantId.set(+$any($event.target).value || null)">
+          <select class="select" aria-label="Variant" [disabled]="!modelId()" (change)="variantId.set(+$any($event.target).value || null)">
             <option value="">{{ loadingV() ? 'Loading…' : 'Select variant' }}</option>
             @for (v of variants(); track v.id) { <option [value]="v.id" [selected]="v.id === variantId()">{{ v.name }}{{ v.fuel_type ? ' · ' + v.fuel_type : '' }}</option> }
           </select>
@@ -76,11 +69,9 @@ export class VehicleSelectorComponent implements OnInit {
   protected readonly type = signal<'car' | 'motorcycle'>('car');
   protected readonly manufacturers = signal<Manufacturer[]>([]);
   protected readonly models = signal<VehicleModel[]>([]);
-  protected readonly years = signal<number[]>([]);
   protected readonly variants = signal<VehicleVariant[]>([]);
   protected readonly manufacturerId = signal<number | null>(null);
   protected readonly modelId = signal<number | null>(null);
-  protected readonly year = signal<number | null>(null);
   protected readonly variantId = signal<number | null>(null);
   protected readonly loadingM = signal(false);
   protected readonly loadingMo = signal(false);
@@ -112,20 +103,12 @@ export class VehicleSelectorComponent implements OnInit {
   }
 
   onModel(value: string): void {
-    this.resetFrom('year');
-    this.modelId.set(+value || null);
-    const id = this.modelId();
-    if (!id) return;
-    this.api.getYears(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((y) => this.years.set(y));
-  }
-
-  onYear(value: string): void {
     this.resetFrom('variant');
-    this.year.set(+value || null);
+    this.modelId.set(+value || null);
     const modelId = this.modelId();
-    if (!modelId || !this.year()) return;
+    if (!modelId) return;
     this.loadingV.set(true);
-    this.api.getVariants(modelId, this.year()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.getVariants(modelId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (v) => {
         this.variants.set(v);
         if (v.length === 1) this.variantId.set(v[0].id);
@@ -142,7 +125,7 @@ export class VehicleSelectorComponent implements OnInit {
     if (!m || !mo || !v) return;
     const vehicle: SelectedVehicle = {
       manufacturerId: m.id, manufacturerName: m.name, modelId: mo.id, modelName: mo.name,
-      year: this.year(), variantId: v.id, variantName: v.name, vehicleType: mo.vehicle_type,
+      variantId: v.id, variantName: v.name, vehicleType: mo.vehicle_type,
     };
     if (this.persist()) this.store.select(vehicle);
     this.selected.emit(vehicle);
@@ -166,24 +149,18 @@ export class VehicleSelectorComponent implements OnInit {
     this.api.getModels(v.manufacturerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((models) => {
       this.models.set(models.filter((x) => this.showTypeToggle() ? x.vehicle_type === this.type() : true));
       this.modelId.set(v.modelId);
-      this.api.getYears(v.modelId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((years) => {
-        this.years.set(years);
-        const year = v.year ?? years[0] ?? null;
-        this.year.set(year);
-        this.api.getVariants(v.modelId, year).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((variants) => {
-          this.variants.set(variants);
-          this.variantId.set(v.variantId);
-        });
+      this.api.getVariants(v.modelId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((variants) => {
+        this.variants.set(variants);
+        this.variantId.set(v.variantId);
       });
     });
   }
 
-  private resetFrom(level: 'make' | 'model' | 'year' | 'variant'): void {
-    const order = ['make', 'model', 'year', 'variant'];
+  private resetFrom(level: 'make' | 'model' | 'variant'): void {
+    const order = ['make', 'model', 'variant'];
     const idx = order.indexOf(level);
     if (idx <= 0) { this.manufacturerId.set(null); this.manufacturers.set([]); }
     if (idx <= 1) { this.modelId.set(null); this.models.set([]); }
-    if (idx <= 2) { this.year.set(null); this.years.set([]); }
     this.variantId.set(null);
     this.variants.set([]);
   }

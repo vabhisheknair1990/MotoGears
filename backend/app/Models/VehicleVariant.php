@@ -14,11 +14,11 @@ class VehicleVariant extends Model
     protected $attributes = ['is_active' => true];
 
     protected $fillable = [
-        'vehicle_model_id', 'name', 'year_from', 'year_to', 'engine', 'fuel_type',
+        'vehicle_model_id', 'name', 'engine', 'fuel_type',
         'transmission', 'displacement_cc', 'is_active',
     ];
 
-    protected $casts = ['is_active' => 'boolean', 'year_from' => 'integer', 'year_to' => 'integer', 'displacement_cc' => 'integer'];
+    protected $casts = ['is_active' => 'boolean', 'displacement_cc' => 'integer'];
 
     public function model(): BelongsTo
     {
@@ -31,22 +31,7 @@ class VehicleVariant extends Model
             ->when(! \App\Support\Catalog::sellsCars(), fn ($q) => $q->whereHas('model', fn ($m) => $m->where('vehicle_type', '!=', 'car')));
     }
 
-    public function scopeForYear(Builder $q, ?int $year): Builder
-    {
-        return $year ? $q->where('year_from', '<=', $year)->where(fn ($w) => $w->whereNull('year_to')->orWhere('year_to', '>=', $year)) : $q;
-    }
-
-    public function yearRange(): string
-    {
-        return $this->year_from.'–'.($this->year_to ?? 'present');
-    }
-
-    public function years(): array
-    {
-        return range($this->year_from, $this->year_to ?? (int) date('Y'));
-    }
-
-    /** "Mahindra Thar 2.0 Petrol AT (2020–present)" */
+    /** "Royal Enfield Classic 350 Signals" */
     public function fullName(): string
     {
         $this->loadMissing('model.manufacturer');

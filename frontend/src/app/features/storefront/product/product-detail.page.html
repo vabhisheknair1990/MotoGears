@@ -140,13 +140,12 @@
                   <div class="card">
                     <div class="card-head"><h3>{{ g.make }}</h3><span class="badge">{{ g.rows.length }}</span></div>
                     <table class="table">
-                      <thead><tr><th>Model</th><th>Variant</th><th>Years</th><th>Fuel / Trans.</th></tr></thead>
+                      <thead><tr><th>Model</th><th>Variant</th><th>Fuel / Trans.</th></tr></thead>
                       <tbody>
                         @for (c of g.rows; track c.id) {
                           <tr [class.mine]="c.variant?.id === vehicle.variantId() || (!c.variant && c.model?.id === vehicle.selected()?.modelId)">
                             <td class="fw-600">{{ c.model?.name ?? 'All models' }}</td>
                             <td>{{ c.variant?.name ?? 'All variants' }}</td>
-                            <td>{{ c.year_from ?? '…' }}–{{ c.year_to ?? 'present' }}</td>
                             <td>{{ c.variant?.fuel_type ?? 'All' }}{{ c.variant?.transmission ? ' · ' + c.variant!.transmission : '' }}</td>
                           </tr>
                         }

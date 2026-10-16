@@ -1,7 +1,7 @@
 # MotoGears — Automobile Parts & Accessories E-Commerce
 
 A full-stack e-commerce platform for car and motorcycle parts with **exact vehicle fitment**
-(make → model → variant → year), a complete customer storefront and a role-based admin console.
+(make → model → variant), a complete customer storefront and a role-based admin console.
 
 | Layer    | Stack |
 |----------|-------|
@@ -215,7 +215,7 @@ API: `POST /orders/{id}/upi/qr`, `GET /orders/{id}/upi/status`, `POST /orders/{i
 with the simulator.
 
 Seed data (fresh install): 25 customers + 6 staff, 13 vehicle manufacturers, 40 models, 86 variants
-with year ranges, 32 categories (parent + child), 28 brands, 172 products with generated images, 90
+32 categories (parent + child), 28 brands, 172 products with generated images, 90
 historical orders across every status and payment method, 135 reviews, plus banners, pages, FAQs, blog
 posts and testimonials.
 
@@ -227,7 +227,7 @@ posts and testimonials.
    category/brand) to bulk-edit what you already have. The workbook has:
    - **Instructions** — how it works plus a guide to every column (hover over any header in Excel for help);
    - **Products** — one row per product; red headers are required for new products;
-   - **Compatibility** — one row per vehicle a product fits (make, model or exact variant + optional years);
+   - **Compatibility** — one row per vehicle a product fits (make, model or exact variant);
    - **Variants** and **FAQs** — optional, linked to products by SKU;
    - **Lists** — every category path, brand, vehicle and filter value from your store. Category, Brand,
      Vehicle, Vehicle type, Yes/No and GST cells are **dropdowns** fed from this sheet, so related data is
@@ -302,7 +302,7 @@ The downloadable invoice embeds `backend/resources/brand/logo.svg`, so it works 
 ## 4. Features
 
 ### Storefront (`/`)
-- Home: hero banners, vehicle selector (Make → Model → Year → Variant from the API), featured
+- Home: hero banners, vehicle selector (Make → Model → Variant from the API), featured
   categories, deals, best sellers, new arrivals, brands, offers, testimonials, blog — one aggregated
   `GET /homepage` call.
 - Selected vehicle persists and personalises listings, search and the "fits your vehicle" badges.

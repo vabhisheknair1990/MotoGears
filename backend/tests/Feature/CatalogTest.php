@@ -64,23 +64,22 @@ class CatalogTest extends TestCase
 
     public function test_vehicle_compatibility_filter_and_endpoint(): void
     {
-        $variant = VehicleVariant::factory()->create(['year_from' => 2020]);
-        $otherVariant = VehicleVariant::factory()->create(['vehicle_model_id' => $variant->vehicle_model_id, 'name' => 'Other', 'year_from' => 2015, 'year_to' => 2018]);
+        $variant = VehicleVariant::factory()->create();
+        $otherVariant = VehicleVariant::factory()->create(['vehicle_model_id' => $variant->vehicle_model_id, 'name' => 'Other']);
         $exact = $this->product(['name' => 'Exact fit']);
         $modelWide = $this->product(['name' => 'Model wide']);
         $universal = $this->product(['name' => 'Universal', 'is_universal' => true, 'vehicle_type' => 'universal']);
         $this->product(['name' => 'No fit']);
-        $oldYears = $this->product(['name' => 'Old years']);
 
         ProductCompatibility::create(['product_id' => $exact->id, 'vehicle_manufacturer_id' => $variant->model->vehicle_manufacturer_id, 'vehicle_model_id' => $variant->vehicle_model_id, 'vehicle_variant_id' => $variant->id]);
         ProductCompatibility::create(['product_id' => $modelWide->id, 'vehicle_manufacturer_id' => $variant->model->vehicle_manufacturer_id, 'vehicle_model_id' => $variant->vehicle_model_id]);
-        ProductCompatibility::create(['product_id' => $oldYears->id, 'vehicle_manufacturer_id' => $variant->model->vehicle_manufacturer_id, 'vehicle_model_id' => $variant->vehicle_model_id, 'year_from' => 2012, 'year_to' => 2016]);
 
         $ids = collect($this->getJson($this->api("products?vehicle_variant_id={$variant->id}"))->json('data'))->pluck('id')->sort()->values()->all();
         $this->assertEquals(collect([$exact->id, $modelWide->id, $universal->id])->sort()->values()->all(), $ids);
 
+        // A model-wide part fits every variant of the model; an exact-variant part only that variant.
         $ids = collect($this->getJson($this->api("products?vehicle_variant={$otherVariant->id}"))->json('data'))->pluck('id');
-        $this->assertTrue($ids->contains($oldYears->id));
+        $this->assertTrue($ids->contains($modelWide->id));
         $this->assertFalse($ids->contains($exact->id));
 
         $this->getJson($this->api("products/{$exact->id}/compatibility"))->assertOk()->assertJsonCount(1, 'data.vehicles');
@@ -128,14 +127,14 @@ class CatalogTest extends TestCase
 
     public function test_vehicle_selector_endpoints(): void
     {
-        $variant = VehicleVariant::factory()->create(['year_from' => 2021, 'year_to' => 2023]);
+        $variant = VehicleVariant::factory()->create();
         $m = $variant->model;
 
         $this->getJson($this->api('vehicles/manufacturers'))->assertOk()->assertJsonPath('data.0.id', $m->vehicle_manufacturer_id);
         $this->getJson($this->api("vehicles/models?manufacturer_id={$m->vehicle_manufacturer_id}"))->assertJsonPath('data.0.id', $m->id);
-        $this->getJson($this->api("vehicles/years?model_id={$m->id}"))->assertJsonPath('data', [2023, 2022, 2021]);
-        $this->getJson($this->api("vehicles/variants?model_id={$m->id}&year=2022"))->assertJsonCount(1, 'data');
-        $this->getJson($this->api("vehicles/variants?model_id={$m->id}&year=2019"))->assertJsonCount(0, 'data');
+        // Make → model → variant: no model years.
+        $this->getJson($this->api("vehicles/years?model_id={$m->id}"))->assertNotFound();
+        $this->getJson($this->api("vehicles/variants?model_id={$m->id}"))->assertJsonCount(1, 'data')->assertJsonMissingPath('data.0.year_from')->assertJsonMissingPath('data.0.year_range');
         $this->getJson($this->api('vehicles/models'))->assertStatus(422);
     }
 

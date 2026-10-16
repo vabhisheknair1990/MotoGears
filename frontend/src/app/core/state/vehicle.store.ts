@@ -10,7 +10,7 @@ export class VehicleStore {
   readonly selected = signal<SelectedVehicle | null>(storage.getJson<SelectedVehicle>(KEY));
   readonly label = computed(() => {
     const v = this.selected();
-    return v ? `${v.manufacturerName} ${v.modelName}${v.year ? ' ' + v.year : ''}` : null;
+    return v ? `${v.manufacturerName} ${v.modelName}` : null;
   });
   readonly fullLabel = computed(() => {
     const v = this.selected();
